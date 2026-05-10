@@ -5,7 +5,7 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 z-100 flex items-center justify-center p-4 animate-fade-in"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
       onClick={e => e.target === e.currentTarget && onCancel()}
     >
@@ -16,7 +16,6 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
           border: '1.5px solid var(--color-border)',
         }}
       >
-        {/* Close */}
         <div className="flex items-start justify-between mb-5">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -49,13 +48,12 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
           . Files will be shared end-to-end.
         </p>
 
-        {/* Peer info */}
         <div
           className="flex items-center gap-3 p-3 rounded-xl mb-5"
           style={{ background: 'var(--color-surface2)', border: '1.5px solid var(--color-border)' }}
         >
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-700 font-display text-white flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-700 font-display text-white shrink-0"
             style={{ background: `linear-gradient(135deg, ${peer.color}, ${peer.color}99)` }}
           >
             {peer.initials}
@@ -71,7 +69,6 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3">
           <button
             onClick={onCancel}

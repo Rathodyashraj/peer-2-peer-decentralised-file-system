@@ -1,6 +1,3 @@
-/**
- * Format bytes to human readable string
- */
 export function formatBytes(bytes) {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -9,9 +6,6 @@ export function formatBytes(bytes) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
 
-/**
- * Get file type category from MIME type or filename
- */
 export function getFileCategory(file) {
   const type = file.type || ''
   const name = file.name || ''
@@ -29,9 +23,6 @@ export function getFileCategory(file) {
   return 'generic'
 }
 
-/**
- * Get color for file category
- */
 export function getFileCategoryColor(category) {
   const colors = {
     image: '#22D3EE',
@@ -48,16 +39,10 @@ export function getFileCategoryColor(category) {
   return colors[category] || colors.generic
 }
 
-/**
- * Generate a unique ID
- */
 export function uid() {
   return Math.random().toString(36).slice(2, 9)
 }
 
-/**
- * Debounce function
- */
 export function debounce(fn, ms) {
   let timer
   return (...args) => {

@@ -1,245 +1,153 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router'
 import { User, AtSign, Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 
 export default function SignupPage() {
-  const { signup, setPage, PAGES, darkMode } = useApp()
-  const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '', confirm: '' })
-  const [showPw, setShowPw] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const { signup } = useApp()
+  const navigate = useNavigate()
+  const [form, setForm]       = useState({ fullName: '', username: '', email: '', password: '', confirm: '' })
+  const [showPw, setShowPw]   = useState(false)
+  const [showCfm, setShowCfm] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors]   = useState({})
 
   function validate() {
-    const errs = {}
-    if (!form.fullName.trim()) errs.fullName = 'Full name is required'
-    if (!form.username.trim()) errs.username = 'Username is required'
-    else if (!/^[a-zA-Z0-9_.]+$/.test(form.username)) errs.username = 'Only letters, numbers, . and _'
-    if (!form.email.trim()) errs.email = 'Email is required'
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email address'
-    if (!form.password) errs.password = 'Password is required'
-    else if (form.password.length < 8) errs.password = 'Minimum 8 characters'
-    if (form.password !== form.confirm) errs.confirm = 'Passwords do not match'
-    return errs
+    const e = {}
+    if (!form.fullName.trim()) e.fullName = 'Full name is required'
+    if (!form.username.trim()) e.username = 'Username is required'
+    else if (!/^[a-zA-Z0-9_.]+$/.test(form.username)) e.username = 'Only letters, numbers, . and _'
+    if (!form.email.trim())    e.email    = 'Email is required'
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Invalid email'
+    if (!form.password)        e.password = 'Password is required'
+    else if (form.password.length < 8) e.password = 'Minimum 8 characters'
+    if (form.password !== form.confirm) e.confirm = 'Passwords do not match'
+    return e
   }
 
-  function handleSubmit(e) {
-    e.preventDefault()
-    const errs = validate()
-    if (Object.keys(errs).length) { setErrors(errs); return }
+  function handleSubmit(ev) {
+    ev.preventDefault()
+    const e = validate()
+    if (Object.keys(e).length) { setErrors(e); return }
     setErrors({})
     setLoading(true)
-    setTimeout(() => {
-      signup(form)
-    }, 1200)
+    setTimeout(() => signup(form, navigate), 1200)
   }
 
   function handleGoogle() {
     setLoading(true)
-    setTimeout(() => signup({ fullName: 'Google User', username: 'google_user' }), 1000)
+    setTimeout(() => signup({ fullName: 'Google User', username: 'google_user' }, navigate), 1000)
   }
 
-  const fields = [
-    { key: 'fullName', label: 'Full Name', icon: User, type: 'text', placeholder: 'Jane Doe' },
-    { key: 'username', label: 'Username', icon: AtSign, type: 'text', placeholder: 'jane_doe' },
-    { key: 'email', label: 'Email', icon: Mail, type: 'email', placeholder: 'jane@peershare.io' },
-  ]
+  const pwStrength = Math.min(4, Math.floor(form.password.length / 2))
+  const pwColor    = form.password.length >= 8 ? '#4ADE80' : '#FBBF24'
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'var(--color-bg)' }}
-    >
-      {/* Background glows */}
-      <div
-        className="absolute top-1/3 right-1/4 w-96 h-96 rounded-full pointer-events-none"
-        style={{
-          background: darkMode
-            ? 'radial-gradient(circle, rgba(14,165,233,0.07) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(14,165,233,0.05) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-      />
-      <div
-        className="absolute bottom-1/3 left-1/4 w-72 h-72 rounded-full pointer-events-none"
-        style={{
-          background: darkMode
-            ? 'radial-gradient(circle, rgba(20,184,166,0.06) 0%, transparent 70%)'
-            : 'radial-gradient(circle, rgba(20,184,166,0.04) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-      />
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-app">
+      <div className="glow-blob w-96 h-96 top-1/3 right-1/4"
+        style={{ background: 'radial-gradient(circle, color-mix(in oklch, #0EA5E9 7%, transparent) 0%, transparent 70%)' }} />
+      <div className="glow-blob w-72 h-72 bottom-1/3 left-1/4"
+        style={{ background: 'radial-gradient(circle, color-mix(in oklch, #14B8A6 6%, transparent) 0%, transparent 70%)' }} />
 
-      {/* Logo */}
       <div className="flex items-center gap-2.5 mb-7 animate-slide-up">
-        <div
-          className="w-10 h-10 rounded-2xl flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, #14B8A6, #0EA5E9)' }}
-        >
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-brand">
           <Share2 size={20} className="text-white" />
         </div>
-        <span className="text-2xl font-800 font-display" style={{ color: 'var(--color-text)' }}>
-          PeerShare
-        </span>
+        <span className="text-2xl font-extrabold font-display text-app">PeerShare</span>
       </div>
 
-      {/* Card */}
-      <div
-        className="w-full max-w-md rounded-3xl p-8 shadow-2xl animate-slide-up"
-        style={{
-          background: 'var(--color-surface)',
-          border: '1.5px solid var(--color-border)',
-          animationDelay: '60ms',
-        }}
-      >
+      <div className="card-lg w-full max-w-md p-8 shadow-2xl animate-slide-up" style={{ animationDelay: '60ms' }}>
         <div className="mb-7">
-          <h1 className="text-2xl font-800 font-display mb-1.5" style={{ color: 'var(--color-text)' }}>
-            Create your account
-          </h1>
-          <p className="text-sm font-body" style={{ color: 'var(--color-muted)' }}>
-            Join PeerShare — direct transfers, no middlemen
-          </p>
+          <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">Create your account</h1>
+          <p className="text-sm text-muted font-body-var">Join PeerShare — direct transfers, no middlemen</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Text fields */}
-          {fields.map(({ key, label, icon: Icon, type, placeholder }) => (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {[
+            { key: 'fullName', label: 'Full Name', icon: User,   type: 'text',  ph: 'Jane Doe' },
+            { key: 'username', label: 'Username',  icon: AtSign, type: 'text',  ph: 'jane_doe' },
+            { key: 'email',    label: 'Email',     icon: Mail,   type: 'email', ph: 'jane@peershare.io' },
+          ].map(({ key, label, icon: Icon, type, ph }) => (
             <div key={key}>
-              <label className="block text-sm font-500 font-body mb-1.5" style={{ color: 'var(--color-text)' }}>
-                {label}
-              </label>
+              <label className="block text-sm font-medium mb-1.5 text-app font-body-var">{label}</label>
               <div className="relative">
-                <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-muted)' }} />
-                <input
-                  type={type}
-                  value={form[key]}
+                <Icon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
+                <input type={type} value={form[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  placeholder={placeholder}
-                  className="input-field pl-10"
-                  style={errors[key] ? { borderColor: '#F87171' } : {}}
-                />
+                  placeholder={ph}
+                  className={`input-field pl-10 ${errors[key] ? 'input-field--error' : ''}`} />
               </div>
-              {errors[key] && (
-                <p className="text-xs mt-1 font-body" style={{ color: '#F87171' }}>{errors[key]}</p>
-              )}
+              {errors[key] && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors[key]}</p>}
             </div>
           ))}
 
-          {/* Password */}
           <div>
-            <label className="block text-sm font-500 font-body mb-1.5" style={{ color: 'var(--color-text)' }}>
-              Password
-            </label>
+            <label className="block text-sm font-medium mb-1.5 text-app font-body-var">Password</label>
             <div className="relative">
-              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-muted)' }} />
-              <input
-                type={showPw ? 'text' : 'password'}
-                value={form.password}
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
+              <input type={showPw ? 'text' : 'password'} value={form.password}
                 onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                 placeholder="Min. 8 characters"
-                className="input-field pl-10 pr-11"
-                style={errors.password ? { borderColor: '#F87171' } : {}}
-              />
+                className={`input-field pl-10 pr-11 ${errors.password ? 'input-field--error' : ''}`} />
               <button type="button" onClick={() => setShowPw(v => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 hover:opacity-70"
-                style={{ color: 'var(--color-muted)' }}>
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:opacity-70 transition-opacity">
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.password && <p className="text-xs mt-1 font-body" style={{ color: '#F87171' }}>{errors.password}</p>}
-
-            {/* Strength indicator */}
+            {errors.password && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.password}</p>}
             {form.password && (
               <div className="flex gap-1 mt-2">
                 {[...Array(4)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-1 flex-1 rounded-full transition-all duration-300"
-                    style={{
-                      background: i < Math.min(4, Math.floor(form.password.length / 2))
-                        ? form.password.length >= 8 ? '#4ADE80' : '#FBBF24'
-                        : 'var(--color-border)'
-                    }}
-                  />
+                  <div key={i} className="h-1 flex-1 rounded-full transition-all duration-300"
+                    style={{ background: i < pwStrength ? pwColor : 'var(--color-border)' }} />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Confirm password */}
           <div>
-            <label className="block text-sm font-500 font-body mb-1.5" style={{ color: 'var(--color-text)' }}>
-              Confirm Password
-            </label>
+            <label className="block text-sm font-medium mb-1.5 text-app font-body-var">Confirm Password</label>
             <div className="relative">
-              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--color-muted)' }} />
-              <input
-                type={showConfirm ? 'text' : 'password'}
-                value={form.confirm}
+              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
+              <input type={showCfm ? 'text' : 'password'} value={form.confirm}
                 onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
                 placeholder="••••••••"
-                className="input-field pl-10 pr-11"
-                style={errors.confirm ? { borderColor: '#F87171' } : form.confirm && form.confirm === form.password ? { borderColor: '#4ADE80' } : {}}
-              />
-              <button type="button" onClick={() => setShowConfirm(v => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 hover:opacity-70"
-                style={{ color: 'var(--color-muted)' }}>
-                {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                className={`input-field pl-10 pr-11 ${errors.confirm ? 'input-field--error' : ''} ${!errors.confirm && form.confirm && form.confirm === form.password ? 'input-field--success' : ''}`} />
+              <button type="button" onClick={() => setShowCfm(v => !v)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:opacity-70 transition-opacity">
+                {showCfm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.confirm && <p className="text-xs mt-1 font-body" style={{ color: '#F87171' }}>{errors.confirm}</p>}
+            {errors.confirm && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.confirm}</p>}
           </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary flex items-center justify-center gap-2 mt-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                Creating account…
-              </>
-            ) : 'Create account'}
+          <button type="submit" disabled={loading} className="btn-primary mt-1">
+            {loading ? <><span className="spinner" />Creating account…</> : 'Create account'}
           </button>
         </form>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
-          <span className="text-xs font-body" style={{ color: 'var(--color-muted)' }}>OR</span>
-          <div className="flex-1 h-px" style={{ background: 'var(--color-border)' }} />
-        </div>
+        <div className="divider-or my-5">OR</div>
 
-        {/* Google */}
-        <button
-          type="button"
-          onClick={handleGoogle}
-          disabled={loading}
-          className="btn-secondary flex items-center justify-center gap-3"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18">
-            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-            <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
-            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
-          </svg>
-          Continue with Google
+        <button type="button" onClick={handleGoogle} disabled={loading} className="btn-secondary">
+          <GoogleIcon /> Continue with Google
         </button>
 
-        {/* Switch to login */}
-        <p className="text-center text-sm font-body mt-6" style={{ color: 'var(--color-muted)' }}>
+        <p className="text-center text-sm font-body-var mt-6 text-muted">
           Already have an account?{' '}
-          <button
-            onClick={() => setPage(PAGES.LOGIN)}
-            className="font-600 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--color-accent)' }}
-          >
-            Sign in
-          </button>
+          <Link to="/login" className="font-semibold text-accent hover:opacity-70 transition-opacity">Sign in</Link>
         </p>
       </div>
     </div>
+  )
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18">
+      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+      <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+    </svg>
   )
 }

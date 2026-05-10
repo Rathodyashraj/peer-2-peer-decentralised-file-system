@@ -29,15 +29,13 @@ export default function FileCard({ file, onRemove, progress, status }) {
         border: '1.5px solid var(--color-border)',
       }}
     >
-      {/* Icon */}
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: `${color}15`, border: `1.5px solid ${color}30` }}
       >
         <Icon size={18} style={{ color }} />
       </div>
 
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <p
           className="text-sm font-500 font-body truncate"
@@ -59,7 +57,6 @@ export default function FileCard({ file, onRemove, progress, status }) {
           )}
         </div>
 
-        {/* Progress bar */}
         {isSending && (
           <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-border)' }}>
             <div
@@ -70,11 +67,10 @@ export default function FileCard({ file, onRemove, progress, status }) {
         )}
       </div>
 
-      {/* Remove / status */}
       {!isSending && !isDone && onRemove && (
         <button
           onClick={() => onRemove(file)}
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-150"
+          className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all duration-150"
           style={{ color: 'var(--color-muted)' }}
           onMouseEnter={e => {
             e.currentTarget.style.background = 'rgba(248,113,113,0.1)'
@@ -90,14 +86,14 @@ export default function FileCard({ file, onRemove, progress, status }) {
       )}
 
       {isSending && (
-        <div className="w-5 h-5 rounded-full border-2 border-transparent animate-spin flex-shrink-0"
+        <div className="w-5 h-5 rounded-full border-2 border-transparent animate-spin shrink-0"
           style={{ borderTopColor: 'var(--color-accent)', borderRightColor: 'var(--color-accent)' }}
         />
       )}
 
       {isDone && (
         <div
-          className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
+          className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
           style={{ background: 'rgba(74,222,128,0.12)' }}
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

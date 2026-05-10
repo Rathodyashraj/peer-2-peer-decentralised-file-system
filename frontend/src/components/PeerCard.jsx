@@ -3,16 +3,14 @@ import { Plug } from 'lucide-react'
 export default function PeerCard({ peer, onConnect }) {
   return (
     <div className="peer-card animate-fade-in group">
-      {/* Avatar + info */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-shrink-0">
+<div className="relative shrink-0">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-700 font-display text-white"
             style={{ background: `linear-gradient(135deg, ${peer.color}, ${peer.color}99)` }}
           >
             {peer.initials}
           </div>
-          {/* Online indicator */}
           <div className="absolute -bottom-0.5 -right-0.5">
             <div className="relative w-3.5 h-3.5">
               <div className="absolute inset-0 rounded-full bg-emerald-400 opacity-30 animate-pulse-dot" />
@@ -41,7 +39,6 @@ export default function PeerCard({ peer, onConnect }) {
         </div>
       </div>
 
-      {/* Connect button */}
       <button
         onClick={() => onConnect(peer)}
         className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-600 font-display transition-all duration-200 group-hover:scale-[1.02]"

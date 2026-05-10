@@ -1,102 +1,79 @@
 @import "tailwindcss";
 
-
+/* ── Custom design tokens ────────────────────────────────── */
 @theme {
+  /* Typography */
+  --font-display: "Outfit", sans-serif;
+  --font-body:    "Plus Jakarta Sans", sans-serif;
+  --font-mono:    "JetBrains Mono", monospace;
 
-  /* ----- Color palette ----- */
-
-  /* Navy scale (dark surfaces) */
+  /* Brand palette */
   --color-navy-950: #04080F;
   --color-navy-900: #070D1A;
   --color-navy-800: #0C1528;
   --color-navy-700: #111E35;
   --color-navy-600: #172543;
   --color-navy-500: #1E3050;
-  --color-navy-400: #2A4570;
 
-  /* Teal accent */
   --color-teal-400: #2DD4BF;
   --color-teal-500: #14B8A6;
   --color-teal-600: #0D9488;
 
-  /* Cyan accent */
   --color-cyan-400: #22D3EE;
   --color-cyan-500: #06B6D4;
 
-  /* Slate neutrals */
-  --color-slate-50:  #F0F6FF;
-  --color-slate-100: #E2EAF8;
-  --color-slate-200: #C8D8F0;
-  --color-slate-300: #A0B8D8;
-  --color-slate-400: #7090B0;
-  --color-slate-500: #506888;
-  --color-slate-600: #384F68;
+  --color-lime-400:    #4ADE80;
+  --color-emerald-400: #34D399;
+  --color-red-400:     #F87171;
+  --color-amber-400:   #FBBF24;
+  --color-violet-400:  #A78BFA;
 
-  /* ----- Typography ----- */
-  --font-display: 'Outfit', sans-serif;
-  --font-body:    'Plus Jakarta Sans', sans-serif;
-  --font-mono:    'JetBrains Mono', monospace;
+  /* Custom animations — v4 registers these as animate-* utilities */
+  --animate-fade-in:    fadeIn    0.3s ease-out both;
+  --animate-slide-up:   slideUp   0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-down: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-scale-in:   scaleIn   0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-toast-in:   toastIn   0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer:    shimmer   1.5s linear infinite;
+  --animate-pulse-dot:  pulseDot  2s   ease-in-out infinite;
+  --animate-progress:   progressFill 1.8s ease-in-out forwards;
 
-  /* ----- Shadows ----- */
-  --shadow-glow-teal:    0 0 20px rgba(20,184,166,0.2), 0 0 60px rgba(20,184,166,0.05);
-  --shadow-glow-teal-sm: 0 0 10px rgba(20,184,166,0.15);
-  --shadow-card-dark:    0 4px 24px rgba(0,0,0,0.4),   0 1px 0 rgba(255,255,255,0.03) inset;
-  --shadow-card-light:   0 4px 24px rgba(0,0,0,0.08),  0 1px 0 rgba(255,255,255,0.60) inset;
-
-  /* ----- Animations ----- */
-  --animate-fade-in:   fadeIn   0.3s ease-out;
-  --animate-slide-up:  slideUp  0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-slide-down:slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-scale-in:  scaleIn  0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  --animate-progress:  progressBar 2s ease-in-out forwards;
-  --animate-pulse-dot: pulseDot 2s ease-in-out infinite;
-  --animate-shimmer:   shimmer  1.5s infinite;
-  --animate-toast-in:  toastIn  0.4s cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* ----- Keyframes ----- */
+  /* Keyframe definitions (v4 inline inside @theme) */
   @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-
   @keyframes slideUp {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0);    }
   }
-
   @keyframes slideDown {
     from { opacity: 0; transform: translateY(-10px); }
     to   { opacity: 1; transform: translateY(0);     }
   }
-
   @keyframes scaleIn {
     from { opacity: 0; transform: scale(0.95); }
     to   { opacity: 1; transform: scale(1);    }
   }
-
-  @keyframes progressBar {
-    from { width: 0%;    }
-    to   { width: 100%;  }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(110%); }
+    to   { opacity: 1; transform: translateX(0);    }
   }
-
-  @keyframes pulseDot {
-    0%, 100% { opacity: 1;   transform: scale(1);   }
-    50%       { opacity: 0.5; transform: scale(0.8); }
-  }
-
   @keyframes shimmer {
     0%   { background-position: -200% 0; }
     100% { background-position:  200% 0; }
   }
-
-  @keyframes toastIn {
-    from { opacity: 0; transform: translateX(100%); }
-    to   { opacity: 1; transform: translateX(0);    }
+  @keyframes pulseDot {
+    0%, 100% { opacity: 1;   transform: scale(1);    }
+    50%       { opacity: 0.4; transform: scale(0.75); }
+  }
+  @keyframes progressFill {
+    from { width: 0%;   }
+    to   { width: 100%; }
   }
 }
 
-
-
+/* ── Semantic surface tokens (light default) ─────────────── */
 :root {
   --color-bg:       #F4F7FB;
   --color-surface:  #FFFFFF;
@@ -104,37 +81,27 @@
   --color-border:   #D8E3F0;
   --color-text:     #0F1C2E;
   --color-muted:    #6080A0;
-  --color-accent:       #0D9488;
-  --color-accent-light: #2DD4BF;
+  --color-accent:   #0D9488;
+  --color-accent-l: #2DD4BF;
 }
 
-@variant dark {
-  :root {
-    --color-bg:       #04080F;
-    --color-surface:  #0C1528;
-    --color-surface2: #111E35;
-    --color-border:   #1E3050;
-    --color-text:     #E8F0FE;
-    --color-muted:    #6080A0;
-    --color-accent:       #14B8A6;
-    --color-accent-light: #2DD4BF;
-  }
+/* ── Dark mode overrides ─────────────────────────────────── */
+.dark {
+  --color-bg:       #04080F;
+  --color-surface:  #0C1528;
+  --color-surface2: #111E35;
+  --color-border:   #1E3050;
+  --color-text:     #E8F0FE;
+  --color-muted:    #6080A0;
+  --color-accent:   #14B8A6;
+  --color-accent-l: #2DD4BF;
 }
 
-/* ============================================================
-   BASE LAYER — global resets and element defaults
-   ============================================================ */
-
+/* ── Base resets ─────────────────────────────────────────── */
 @layer base {
-  *, *::before, *::after {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  html { scroll-behavior: smooth; }
 
   body {
     font-family: var(--font-body);
@@ -145,18 +112,10 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
-  }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-display); }
 
-  /* Scrollbar styling */
   ::-webkit-scrollbar       { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb {
-    background: var(--color-border);
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-muted);
-  }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-muted); }
 }

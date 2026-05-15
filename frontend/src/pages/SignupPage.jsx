@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext'
 export default function SignupPage() {
   const { signup } = useApp()
   const navigate = useNavigate()
-  const [form, setForm]       = useState({ fullName: '', username: '', email: '', password: '', confirm: '' })
+  const [form, setForm]       = useState({ username: '', email: '', password: '', confirm: '' })
   const [showPw, setShowPw]   = useState(false)
   const [showCfm, setShowCfm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -14,7 +14,6 @@ export default function SignupPage() {
 
   function validate() {
     const e = {}
-    if (!form.fullName.trim()) e.fullName = 'Full name is required'
     if (!form.username.trim()) e.username = 'Username is required'
     else if (!/^[a-zA-Z0-9_.]+$/.test(form.username)) e.username = 'Only letters, numbers, . and _'
     if (!form.email.trim())    e.email    = 'Email is required'
@@ -36,7 +35,7 @@ export default function SignupPage() {
 
   function handleGoogle() {
     setLoading(true)
-    setTimeout(() => signup({ fullName: 'Google User', username: 'google_user' }, navigate), 1000)
+    setTimeout(() => signup({ username: 'google_user' }, navigate), 1000)
   }
 
   const pwStrength = Math.min(4, Math.floor(form.password.length / 2))
@@ -64,7 +63,6 @@ export default function SignupPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {[
-            { key: 'fullName', label: 'Full Name', icon: User,   type: 'text',  ph: 'Jane Doe' },
             { key: 'username', label: 'Username',  icon: AtSign, type: 'text',  ph: 'jane_doe' },
             { key: 'email',    label: 'Email',     icon: Mail,   type: 'email', ph: 'jane@peershare.io' },
           ].map(({ key, label, icon: Icon, type, ph }) => (

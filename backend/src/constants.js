@@ -1,0 +1,1 @@
+export const DB_NAME= "p2p_chat_app";

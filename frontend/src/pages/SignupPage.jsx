@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { User, AtSign, Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import axios from 'axios'
 
 export default function SignupPage() {
   const { signup } = useApp()
   const navigate = useNavigate()
-  const [form, setForm]       = useState({ username: '', email: '', password: '', confirm: '' })
+  const [form, setForm]       = useState({ username: '', email: '', password: '', confirmPassword: '' })
   const [showPw, setShowPw]   = useState(false)
   const [showCfm, setShowCfm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -20,7 +21,7 @@ export default function SignupPage() {
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = 'Invalid email'
     if (!form.password)        e.password = 'Password is required'
     else if (form.password.length < 8) e.password = 'Minimum 8 characters'
-    if (form.password !== form.confirm) e.confirm = 'Passwords do not match'
+    if (form.password !== form.confirmPassword) e.confirmPassword = 'Passwords do not match'
     return e
   }
 
@@ -30,7 +31,24 @@ export default function SignupPage() {
     if (Object.keys(e).length) { setErrors(e); return }
     setErrors({})
     setLoading(true)
-    setTimeout(() => signup(form, navigate), 1200)
+
+
+    //axios request to backend would go here
+    axios.post('http://localhost:8000/register', form)
+    .then((res) => {
+      if(res.data.statusCode === 200){
+        console.log(res.data.data);
+        signup(res.data.data,navigate);
+      } else {
+        setErrors({ general:'Registration failed' })
+      }
+    })
+    .catch((err) => {
+      console.log("something went vverye vereyr wrong in signup page",err);
+    })
+
+
+    // setTimeout(() => signup(form, navigate), 1200)
   }
 
   function handleGoogle() {
@@ -107,16 +125,16 @@ export default function SignupPage() {
             <label className="block text-sm font-medium mb-1.5 text-app font-body-var">Confirm Password</label>
             <div className="relative">
               <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
-              <input type={showCfm ? 'text' : 'password'} value={form.confirm}
-                onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
+              <input type={showCfm ? 'text' : 'password'} value={form.confirmPassword}
+                onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
                 placeholder="••••••••"
-                className={`input-field pl-10 pr-11 ${errors.confirm ? 'input-field--error' : ''} ${!errors.confirm && form.confirm && form.confirm === form.password ? 'input-field--success' : ''}`} />
+                className={`input-field pl-10 pr-11 ${errors.confirmPassword ? 'input-field--error' : ''} ${!errors.confirmPassword && form.confirmPassword && form.confirmPassword === form.password ? 'input-field--success' : ''}`} />
               <button type="button" onClick={() => setShowCfm(v => !v)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:opacity-70 transition-opacity">
                 {showCfm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.confirm && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.confirm}</p>}
+            {errors.confirmPassword && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.confirmPassword}</p>}
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary mt-1">

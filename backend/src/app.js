@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import router from './routes/user.routes.js';
+import { errorHandler } from './middlewares/error.middleware.js';
 
 
 const app = express();
@@ -18,5 +19,6 @@ app.use(express.urlencoded({extended: true})) // middleware that parses incoming
 
 
 app.use("/",router);
+app.use(errorHandler); // global error handling middleware to catch and handle errors thrown from any route
 
 export {app}

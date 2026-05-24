@@ -25,7 +25,7 @@ export default function SignupPage() {
     return e
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault()
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
@@ -33,19 +33,53 @@ export default function SignupPage() {
     setLoading(true)
 
 
-    //axios request to backend would go here
-    axios.post('http://localhost:8000/register', form)
-    .then((res) => {
-      if(res.data.statusCode === 200){
-        console.log(res.data.data);
+
+    try {
+
+      const res = await axios.post('http://localhost:8000/register', form);
+
+      if(res.status === 201){
         signup(res.data.data,navigate);
-      } else {
-        setErrors({ general:'Registration failed' })
       }
-    })
-    .catch((err) => {
-      console.log("something went vverye vereyr wrong in signup page",err);
-    })
+
+      
+      
+    } catch (error) {
+      const backendErorr = error.response?.data;
+
+      if(backendErorr?.errors?.length > 0){
+        
+        const field = backendErorr.errors[0].field;
+
+        setErrors({
+          [field]: backendErorr.message
+        })
+
+      }
+      else{
+        setErrors({ general: backendErorr?.message || 'Registration failed' })
+      }
+    }
+    finally {
+     setLoading(false);
+    }
+
+    // //axios request to backend would go here
+    // axios.post('http://localhost:8000/register', form)
+    // .then((res) => {
+
+    //   if(res.status === 201){
+    //     console.log(`this is res.data \n`,res.data);
+    //     signup(form,navigate); //
+    //   } else {
+    //     setErrors({ general:'Registration failed' })
+    //   }
+    // })
+    // .catch((err) => {
+    //   console.log("something went wrong in signup page",err);
+    // })
+    
+
 
 
     // setTimeout(() => signup(form, navigate), 1200)
@@ -137,8 +171,24 @@ export default function SignupPage() {
             {errors.confirmPassword && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.confirmPassword}</p>}
           </div>
 
+          {errors.general && (
+            <p
+              className="text-sm text-center font-body-var"
+              style={{ color: '#F87171' }}
+            >
+              {errors.general}
+            </p>
+          )}
+
           <button type="submit" disabled={loading} className="btn-primary mt-1">
-            {loading ? <><span className="spinner" />Creating account…</> : 'Create account'}
+            {loading ? (
+              <>
+                <span className="spinner" />
+                Creating account…
+              </>
+            ) : (
+              'Create account'
+            )}
           </button>
         </form>
 

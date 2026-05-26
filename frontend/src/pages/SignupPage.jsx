@@ -36,7 +36,7 @@ export default function SignupPage() {
 
     try {
 
-      const res = await axios.post('http://localhost:8000/register', form);
+      const res = await axios.post('http://localhost:8000/register', form,{withCredentials: true});
 
       if(res.status === 201){
         signup(res.data.data,navigate);

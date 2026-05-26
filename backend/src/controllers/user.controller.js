@@ -4,6 +4,29 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
 
+const generateAccessandRefreshToken = async (userid) => {
+    try {
+
+        const user = await User.findById(userid);
+        const accessToken = await user.generateAccessToken();
+        const refreshToken = await user.generateRefreshToken();
+
+        user.refreshToken = refreshToken;
+        await user.save({validateBeforeSave: false});
+
+        console.log("token generated",accessToken);
+        console.log(`refresh token generated`,refreshToken);
+        
+        return {accessToken,refreshToken};
+
+    } catch (error) {
+        throw new ApiError(500,"Something went wrong while generating access token and refresh token");
+    }
+
+
+}
+
+
 const signUp = asyncHandler(async (req,res) => {
 
     const { username, email, password, confirmPassword, publicKey } = req.body;
@@ -57,7 +80,18 @@ const signUp = asyncHandler(async (req,res) => {
 
     if(!createdUser) throw new ApiError(500,"Something went wrong while registering");
 
-    return res.status(201).json(
+    const {accessToken,refreshToken} = await generateAccessandRefreshToken(user._id); // generating accesstoken and refresh token
+
+    const options = {
+        httpOnly: true,
+        secure: false // change to true during production
+      }
+
+    return res
+    .status(201)
+    .cookie('accessToken',accessToken,options)
+    .cookie('refreshToken',refreshToken,options)
+    .json(
         new ApiResponse(201,createdUser,"User registered successfully")
     );
 

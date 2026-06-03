@@ -218,6 +218,27 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 // logout controller
 const logutUser = asyncHandler(async (req,res) => {
     
+    await User.findByIdAndUpdate(
+        req.user_id,
+        {
+            $set : {
+                refreshToken: null
+            }
+        }
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: false
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(
+        new ApiResponse(200,{},"User logged out successfully")
+    )
 })
 
 

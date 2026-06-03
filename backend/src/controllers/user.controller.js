@@ -14,9 +14,6 @@ const generateAccessandRefreshToken = async (userid) => {
 
         user.refreshToken = refreshToken;
         await user.save({validateBeforeSave: false});
-
-        console.log("token generated",accessToken);
-        console.log(`refresh token generated`,refreshToken);
         
         return {accessToken,refreshToken};
 
@@ -107,24 +104,25 @@ const loginUser = asyncHandler(async (req,res) => {
 
     // if login with username and pass then-->
 
-    const { username, email, password } = req.body;
+    const { login, password } = req.body;
 
     // check fields empty or not
-    if((!username?.trim() && !email?.trim())) throw new ApiError(400,'Username or email is required');
+    if((!login?.trim())) throw new ApiError(400,'Username or email is required');
     if(!password?.trim()) throw new ApiError(400,'Password is required');
 
     
     // if not empty then search for the user in db based on username or email
     const user = await User.findOne({
-        $or: [{username},{email}]
+        $or: [{username: login},{email: login}]
     });
     
 
     // if user not exist then send res
-    if(!user) throw new ApiError(404,'User not exists');
+    if(!user) throw new ApiError(404,'User not Registered');
     
     // if exist then verify pass and gnerate new accesand refresh token and send res
-    const isPasswordValid = user.isPasswordCorrect(password);
+    const isPasswordValid = await user.isPasswordCorrect(password);
+
     
     if(!isPasswordValid) throw new ApiError(401,"Invalid User credentials");
     

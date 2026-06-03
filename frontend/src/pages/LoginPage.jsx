@@ -2,30 +2,62 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import axios from 'axios'
 
 export default function LoginPage() {
   const { login } = useApp()
   const navigate = useNavigate()
-  const [form, setForm]       = useState({ username: '', password: '' })
+  const [form, setForm]       = useState({ login: '', password: '' })
   const [showPw, setShowPw]   = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors]   = useState({})
 
   function validate() {
     const e = {}
-    if (!form.username.trim()) e.username = 'Username or email is required'
+    if (!form.login.trim()) e.login = 'Username or email is required'
     if (!form.password)        e.password = 'Password is required'
     else if (form.password.length < 6) e.password = 'Minimum 6 characters'
     return e
   }
 
-  function handleSubmit(ev) {
+  async function handleSubmit(ev) {
     ev.preventDefault()
     const e = validate()
     if (Object.keys(e).length) { setErrors(e); return }
     setErrors({})
     setLoading(true)
-    setTimeout(() => login(form, navigate), 1200)
+
+    try {
+      const res = await axios.post('http://localhost:8000/login', form, {withCredentials: true});
+
+      if( res.status === 201){
+        login(form,navigate);
+      }
+
+    } catch (error) {
+
+      console.error('Login error:', error.response, "\n");
+
+      const backendErorr = error.response?.data;
+      
+      console.log('Backend error response:', backendErorr, "\n");
+
+      if(backendErorr?.errors?.length > 0){
+        const field = backendErorr.errors[0].field;
+
+        setErrors({
+          [field]: backendErorr.message
+        })
+
+      }
+      else{
+        setErrors({ general: backendErorr?.message || 'Login failed' })
+      }      
+    }
+    finally{
+      setLoading(false);
+    }
+
   }
 
   function handleGoogle() {
@@ -58,12 +90,12 @@ export default function LoginPage() {
             <label className="block text-sm font-medium mb-1.5 text-app font-body-var">Username or Email</label>
             <div className="relative">
               <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
-              <input type="text" value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              <input type="text" value={form.login}
+                onChange={e => setForm(f => ({ ...f, login: e.target.value }))}
                 placeholder="you@example.com"
-                className={`input-field pl-10 ${errors.username ? 'input-field--error' : ''}`} />
+                className={`input-field pl-10 ${errors.login ? 'input-field--error' : ''}`} />
             </div>
-            {errors.username && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.username}</p>}
+            {errors.login && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.login}</p>}
           </div>
 
           <div>
@@ -84,6 +116,8 @@ export default function LoginPage() {
             </div>
             {errors.password && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.password}</p>}
           </div>
+
+          {errors.general && <p className="text-sm mt-2 font-body-var text-center" style={{ color: '#F87171' }}>{errors.general}</p>}
 
           <button type="submit" disabled={loading} className="btn-primary mt-1">
             {loading ? <><span className="spinner" />Signing in…</> : 'Sign in'}

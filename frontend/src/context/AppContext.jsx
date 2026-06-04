@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import axios from 'axios';
 
 const AppContext = createContext(null)
 
@@ -23,6 +24,55 @@ export function AppProvider({ children }) {
   const [toasts, setToasts]               = useState([])
   const [sentFiles, setSentFiles]         = useState([])
   const [inTransitCount, setInTransit]    = useState(0)
+  const [loading, setLoading]               = useState(true)
+
+
+  // for validating access token
+  const runAuthCheck = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/authcheck', {withCredentials: true});
+  
+      if( res.status === 200){
+        setUser(res.data.data);
+      }
+
+    } catch (error) {
+
+      try {
+
+        await refreshAccessToken();
+      
+      } catch (error) {
+        
+        setUser(null);
+      
+      }
+    }
+    finally{
+      setLoading(false); 
+    }
+  }
+  // for refreshing access token using refresh token
+  const refreshAccessToken = async () => {
+    try {
+      const res = await axios.post('http://localhost:8000/refreshtoken',{}, {withCredentials: true});
+
+      if(res.status === 200){
+
+        setUser(res.data.data.user);
+
+      }
+    } catch (error) {
+
+      setUser(null);
+
+    }
+  }
+
+  useEffect(() => {
+    runAuthCheck();
+  }, []);
+
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
@@ -40,10 +90,8 @@ export function AppProvider({ children }) {
 
   const login = useCallback((credentials, navigate) => {
     setUser({
-      fullName: 'Demo User',
       username: credentials.username || 'demo_user',
       email:    credentials.email    || 'demo@peershare.io',
-      initials: 'DU',
     })
     navigate('/dashboard')
     setTimeout(() => addToast('Welcome back! Network active.'), 400)
@@ -98,7 +146,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       darkMode, toggleDark,
-      user, login, signup, logout,
+      user, login, signup, logout,loading,
       peers,
       connectedPeer, connectPeer, disconnectPeer,
       toasts, addToast,

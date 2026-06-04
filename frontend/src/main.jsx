@@ -16,14 +16,33 @@ import SignupPage     from './pages/SignupPage.jsx'
 import DashboardPage  from './pages/DashboardPage.jsx'
 import WorkspacePage  from './pages/WorkspacePage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import PublicRoute   from './components/PublicRoute.jsx'
 import WorkspaceGuard from './components/WorkspaceGuard.jsx'
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <Route path="/" element={<Layout />}>
-      <Route index        element={<LoginPage />} />
-      <Route path="login"  element={<LoginPage />} />
-      <Route path="signup" element={<SignupPage />} />
+      <Route index        
+      element={
+        <PublicRoute>
+          <LoginPage />
+        </PublicRoute>
+      } />
+
+
+      <Route path="login"  
+      element={
+        <PublicRoute>
+          <LoginPage />
+        </PublicRoute>
+      } />
+
+      <Route path="signup" 
+      element={
+        <PublicRoute>
+          <SignupPage />
+        </PublicRoute>
+      } />
 
       <Route path="dashboard" element={
         <ProtectedRoute>

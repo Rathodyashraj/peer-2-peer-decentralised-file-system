@@ -171,7 +171,7 @@ const authCheck = asyncHandler(async (req,res) => {
         throw new ApiError(401,"Access token Invalid"); // handle from fronend and check if refreshtoken is there then send request to refresh access token endpoint and if not then redirect to login page
     }
 
-    return res.status(200).json( new ApiResponse(200,"logged in successfully using accesstoken"))
+    return res.status(200).json( new ApiResponse(200,user,"logged in successfully using accesstoken"))
 
 
 })
@@ -194,7 +194,7 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
         throw new ApiError(401,'Invalid Refresh Token')// throw error refreshtoken invalid or expired so based on this redirect to login page
     }
 
-    const { newAccessToken, newRefreshToken } = await generateAccessandRefreshToken(user._id);
+    const { accessToken, refreshToken } = await generateAccessandRefreshToken(user._id);
 
     const options = {
         httpOnly: true,
@@ -203,11 +203,11 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 
     return res
     .status(200)
-    .cookie('accessToken',newAccessToken,options)
-    .cookie('refreshToken',newRefreshToken,options)
+    .cookie('accessToken',accessToken,options)
+    .cookie('refreshToken',refreshToken,options)
     .json( new ApiResponse(
         200,
-        {accessToken: newAccessToken, refreshToken: newRefreshToken},
+        {user,accessToken: accessToken, refreshToken: refreshToken},
         "Access token renewed successfully using refresh token"
     ))
 

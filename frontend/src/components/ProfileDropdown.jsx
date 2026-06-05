@@ -1,12 +1,22 @@
 import { useNavigate } from 'react-router'
 import { Upload, User, LogOut } from 'lucide-react'
 import { useApp } from '../context/AppContext'
+import axios from 'axios'
 
 export default function ProfileDropdown({ onClose }) {
   const { user, logout, addToast } = useApp()
   const navigate = useNavigate()
 
-  function handleLogout() {
+  async function handleLogout() {
+
+    try {
+      const res = await axios.post('http://localhost:8000/logout', {}, { withCredentials: true });
+
+    } catch (error) {
+      
+      addToast('Failed to logout', 'error');
+    }
+
     onClose()
     logout(navigate)
   }

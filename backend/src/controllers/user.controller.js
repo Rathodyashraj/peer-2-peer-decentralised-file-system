@@ -214,7 +214,7 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 })
 
 // logout controller
-const logutUser = asyncHandler(async (req,res) => {
+const logoutUser = asyncHandler(async (req,res) => {
     
     await User.findByIdAndUpdate(
         req.user_id,
@@ -240,7 +240,7 @@ const logutUser = asyncHandler(async (req,res) => {
 })
 
 
-export {signUp,loginUser,authCheck,refreshAccessToken,logutUser};
+export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser};
 
 
 

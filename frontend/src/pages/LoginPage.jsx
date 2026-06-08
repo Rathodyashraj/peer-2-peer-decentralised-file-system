@@ -31,7 +31,7 @@ export default function LoginPage() {
       const res = await axios.post('http://localhost:8000/login', form, {withCredentials: true});
 
       if( res.status === 201){
-        login(form,navigate);
+        login(res.data.data.user,navigate);
       }
 
     } catch (error) {

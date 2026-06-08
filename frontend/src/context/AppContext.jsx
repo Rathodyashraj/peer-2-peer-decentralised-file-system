@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import axios from 'axios';
+import { io } from 'socket.io-client';
+import { useRef} from 'react';
 
 const AppContext = createContext(null)
 
@@ -74,6 +76,39 @@ export function AppProvider({ children }) {
   }, []);
 
 
+  const socketRef = useRef(null);
+
+  //connect socket
+  const connectSocket = () => {
+
+    if(socketRef.current?.connected) return; // already connected
+
+    // create new socket connection
+    socketRef.current = io('http://localhost:8000', {
+      withCredentials: true,
+    });
+
+  }
+
+  const disconnectSocket = () => {
+
+    if(socketRef.current){
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
+  }
+
+  useEffect(() => {
+    if(user){
+      connectSocket(); 
+    }
+    else{
+      disconnectSocket();
+    }
+
+  },[user])
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode)
   }, [darkMode])
@@ -90,18 +125,15 @@ export function AppProvider({ children }) {
 
   const login = useCallback((credentials, navigate) => {
     setUser({
-      username: credentials.username || 'demo_user',
-      email:    credentials.email    || 'demo@peershare.io',
+      username: credentials.username,
+      email:    credentials.email
     })
     navigate('/dashboard')
     setTimeout(() => addToast('Welcome back! Network active.'), 400)
   }, [addToast])
 
   const signup = useCallback((data, navigate) => {
-    const initials = data.fullName
-      ? data.fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-      : 'NU'
-    setUser({ fullName: data.fullName || 'New User', username: data.username || 'new_user', email: data.email || '', initials })
+    setUser({ username: data.username, email: data.email })
     navigate('/dashboard')
     setTimeout(() => addToast('Account created! Welcome to PeerShare.'), 400)
   }, [addToast])
@@ -152,6 +184,7 @@ export function AppProvider({ children }) {
       toasts, addToast,
       sentFiles, inTransitCount,
       sendFiles,
+      socket: socketRef.current
     }}>
       {children}
     </AppContext.Provider>

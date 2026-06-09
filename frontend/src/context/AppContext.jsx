@@ -81,7 +81,7 @@ export function AppProvider({ children }) {
   //connect socket
   const connectSocket = () => {
 
-    if(socketRef.current?.connected) return; // already connected
+    if(socketRef.current) return; // already connected
 
     // create new socket connection
     socketRef.current = io('http://localhost:8000', {

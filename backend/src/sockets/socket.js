@@ -1,4 +1,6 @@
 import {Server} from 'socket.io';
+import { onlineUsers } from './onlineUsers.js';
+import { verifySocketJWT } from '../middlewares/socketAuth.middleware.js';
 
 export const initialiseSocket = (server) => {
     
@@ -9,11 +11,23 @@ export const initialiseSocket = (server) => {
         }
     });
 
+    io.use(verifySocketJWT);
+
     io.on('connection', (socket) => {
-        console.log('a user connected with id : ', socket.id);
+        const userId = socket.user._id.toString();
+
+        onlineUsers.set(
+            userId,
+            {
+                username: socket.user.username,
+                socketId: socket.id
+            }
+        )
         
         socket.on('disconnect', () => {
-            console.log('user disconnected with id : ', socket.id);
+            const user = onlineUsers.get(userId);
+            onlineUsers.delete(userId);
+        
         })
     } )
 

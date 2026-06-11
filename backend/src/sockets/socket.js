@@ -16,16 +16,32 @@ export const initialiseSocket = (server) => {
     io.on('connection', (socket) => {
         const userId = socket.user._id.toString();
 
-        onlineUsers.set(
-            userId,
-            {
-                username: socket.user.username,
-                socketId: socket.id
-            }
-        )
+        if(onlineUsers.has(userId)){
+            onlineUsers.get(userId).socketId.add(socket.id);
+        }
+        else{
+            onlineUsers.set(
+                userId,
+                {
+                    username: socket.user.username,
+                    socketId: new Set([socket.id])
+                }
+            )
+        }
+        
         
         socket.on('disconnect', () => {
-            const user = onlineUsers.get(userId);
+
+            const userData = onlineUsers.get(userId);
+
+            if(!userData) return;
+
+            userData.socketId.delete(socket.id);
+
+            if(userData.socketId.size == 0) {
+                onlineUsers.delete(userId);
+            }
+            
             onlineUsers.delete(userId);
         
         })

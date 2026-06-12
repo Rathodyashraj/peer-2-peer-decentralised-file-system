@@ -17,8 +17,7 @@ export default function DashboardPage() {
     const q = search.toLowerCase().trim()
     if (!q) return peers
     return peers.filter(p =>
-      p.username.toLowerCase().includes(q) ||
-      p.displayName.toLowerCase().includes(q)
+      p.username.toLowerCase().includes(q)
     )
   }, [peers, search])
 
@@ -67,7 +66,7 @@ export default function DashboardPage() {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((peer, i) => (
-              <div key={peer.id} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
+              <div key={peer.userId} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms` }}>
                 <PeerCard peer={peer} onConnect={p => setPendingPeer(p)} />
               </div>
             ))}

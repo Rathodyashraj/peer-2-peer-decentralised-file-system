@@ -7,9 +7,9 @@ export default function PeerCard({ peer, onConnect }) {
 <div className="relative shrink-0">
           <div
             className="w-12 h-12 rounded-2xl flex items-center justify-center text-sm font-700 font-display text-white"
-            style={{ background: `linear-gradient(135deg, ${peer.color}, ${peer.color}99)` }}
+            style={{ background: 'linear-gradient(135deg, #14B8A6, #14B8A699)' }}
           >
-            {peer.initials}
+            {peer.username.slice(0,2).toUpperCase()}
           </div>
           <div className="absolute -bottom-0.5 -right-0.5">
             <div className="relative w-3.5 h-3.5">
@@ -27,14 +27,14 @@ export default function PeerCard({ peer, onConnect }) {
             className="text-sm font-600 font-display truncate"
             style={{ color: 'var(--color-text)' }}
           >
-            @{peer.username}
+            {peer.username}
           </p>
           <p className="text-xs font-body mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--color-muted)' }}>
             <span
               className="w-1.5 h-1.5 rounded-full inline-block"
               style={{ background: '#4ADE80' }}
             />
-            Online · {peer.lastSeen}
+            Online
           </p>
         </div>
       </div>

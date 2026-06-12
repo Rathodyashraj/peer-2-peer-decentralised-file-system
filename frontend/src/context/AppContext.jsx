@@ -5,16 +5,16 @@ import { useRef} from 'react';
 
 const AppContext = createContext(null)
 
-const MOCK_PEERS = [
-  { id: 1, username: 'alex.rivera',  displayName: 'Alex Rivera',  initials: 'AR', color: '#0EA5E9', lastSeen: 'now' },
-  { id: 2, username: 'priya.sharma', displayName: 'Priya Sharma', initials: 'PS', color: '#8B5CF6', lastSeen: 'now' },
-  { id: 3, username: 'noah.chen',    displayName: 'Noah Chen',    initials: 'NC', color: '#F59E0B', lastSeen: 'now' },
-  { id: 4, username: 'sofia.b',      displayName: 'Sofia Becker', initials: 'SB', color: '#EC4899', lastSeen: 'now' },
-  { id: 5, username: 'kai.nakamura', displayName: 'Kai Nakamura', initials: 'KN', color: '#14B8A6', lastSeen: 'now' },
-  { id: 6, username: 'lena.m',       displayName: 'Lena Müller',  initials: 'LM', color: '#F97316', lastSeen: 'now' },
-  { id: 7, username: 'omar.hassan',  displayName: 'Omar Hassan',  initials: 'OH', color: '#22C55E', lastSeen: 'now' },
-  { id: 8, username: 'yuki.tanaka',  displayName: 'Yuki Tanaka',  initials: 'YT', color: '#A78BFA', lastSeen: 'now' },
-]
+// const MOCK_PEERS = [
+//   { id: 1, username: 'alex.rivera',  displayName: 'Alex Rivera',  initials: 'AR', color: '#0EA5E9', lastSeen: 'now' },
+//   { id: 2, username: 'priya.sharma', displayName: 'Priya Sharma', initials: 'PS', color: '#8B5CF6', lastSeen: 'now' },
+//   { id: 3, username: 'noah.chen',    displayName: 'Noah Chen',    initials: 'NC', color: '#F59E0B', lastSeen: 'now' },
+//   { id: 4, username: 'sofia.b',      displayName: 'Sofia Becker', initials: 'SB', color: '#EC4899', lastSeen: 'now' },
+//   { id: 5, username: 'kai.nakamura', displayName: 'Kai Nakamura', initials: 'KN', color: '#14B8A6', lastSeen: 'now' },
+//   { id: 6, username: 'lena.m',       displayName: 'Lena Müller',  initials: 'LM', color: '#F97316', lastSeen: 'now' },
+//   { id: 7, username: 'omar.hassan',  displayName: 'Omar Hassan',  initials: 'OH', color: '#22C55E', lastSeen: 'now' },
+//   { id: 8, username: 'yuki.tanaka',  displayName: 'Yuki Tanaka',  initials: 'YT', color: '#A78BFA', lastSeen: 'now' },
+// ]
 
 let toastId = 0
 
@@ -22,11 +22,11 @@ export function AppProvider({ children }) {
   const [darkMode, setDarkMode]           = useState(true)
   const [user, setUser]                   = useState(null)
   const [connectedPeer, setConnectedPeer] = useState(null)
-  const [peers]                           = useState(MOCK_PEERS)
+  const [peers,setPeers]                  = useState([])
   const [toasts, setToasts]               = useState([])
   const [sentFiles, setSentFiles]         = useState([])
   const [inTransitCount, setInTransit]    = useState(0)
-  const [loading, setLoading]               = useState(true)
+  const [loading, setLoading]             = useState(true)
 
 
   // for validating access token
@@ -87,6 +87,21 @@ export function AppProvider({ children }) {
     socketRef.current = io('http://localhost:8000', {
       withCredentials: true,
     });
+
+    socketRef.current.on('connect', () => {
+      socketRef.current.emit('get-online-users');
+    })
+
+    socketRef.current.off('online-users');
+    socketRef.current.off('online-users-updated');
+
+    socketRef.current.on('online-users',(users) => {
+      setPeers(users);
+    })
+
+    socketRef.current.on('online-users-updated',(users) => {
+      setPeers(users);
+    })
 
   }
 

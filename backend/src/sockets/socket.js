@@ -1,5 +1,5 @@
 import {Server} from 'socket.io';
-import { onlineUsers } from './onlineUsers.js';
+import { broadCastOnlineUsers, getOnlineUsers, onlineUsers } from './onlineUsers.js';
 import { verifySocketJWT } from '../middlewares/socketAuth.middleware.js';
 
 export const initialiseSocket = (server) => {
@@ -17,18 +17,27 @@ export const initialiseSocket = (server) => {
         const userId = socket.user._id.toString();
 
         if(onlineUsers.has(userId)){
-            onlineUsers.get(userId).socketId.add(socket.id);
+            onlineUsers.get(userId).socketIds.add(socket.id);
         }
         else{
             onlineUsers.set(
                 userId,
                 {
                     username: socket.user.username,
-                    socketId: new Set([socket.id])
+                    socketIds: new Set([socket.id])
                 }
             )
         }
+
+        broadCastOnlineUsers(io);
         
+        socket.on('get-online-users',() => {
+
+            socket.emit('online-users', getOnlineUsers(userId));
+        
+        })
+
+
         
         socket.on('disconnect', () => {
 
@@ -36,13 +45,14 @@ export const initialiseSocket = (server) => {
 
             if(!userData) return;
 
-            userData.socketId.delete(socket.id);
+            userData.socketIds.delete(socket.id);
 
-            if(userData.socketId.size == 0) {
+            if(userData.socketIds.size == 0) {
                 onlineUsers.delete(userId);
             }
             
-            onlineUsers.delete(userId);
+            // onlineUsers.delete(userId);
+            broadCastOnlineUsers(io);
         
         })
     } )

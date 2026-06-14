@@ -1,6 +1,8 @@
 import {Server} from 'socket.io';
 import { broadCastOnlineUsers, getOnlineUsers, onlineUsers } from './onlineUsers.js';
 import { verifySocketJWT } from '../middlewares/socketAuth.middleware.js';
+import { handleAcceptRequest, handleConnectionRequest, handleRejectRequest } from './connectionManager.js';
+import { pendingRequests } from './pendingRequest.js';
 
 export const initialiseSocket = (server) => {
     
@@ -37,6 +39,22 @@ export const initialiseSocket = (server) => {
         
         })
 
+        socket.on('connection-request', ({targetUserId}) => {
+            //handleConnectionRequest
+            console.log('connection request sent')
+            handleConnectionRequest(io,socket,targetUserId)
+            
+        })
+
+        socket.on('accept-request',({requesterUserId}) => {
+            handleAcceptRequest(io,socket,requesterUserId);
+        })
+
+        socket.on('reject-request',({requesterUserId}) => {
+            handleRejectRequest(io,socket,requesterUserId);
+        })
+
+
 
         
         socket.on('disconnect', () => {
@@ -48,6 +66,15 @@ export const initialiseSocket = (server) => {
             userData.socketIds.delete(socket.id);
 
             if(userData.socketIds.size == 0) {
+
+                for(const requestKey of pendingRequests){
+                    const [senderId,recieverId] = requestKey.split(":")
+
+                    if(senderId === userId || recieverId === userId){
+                        pendingRequests.delete(requestKey);
+                    }
+                }
+
                 onlineUsers.delete(userId);
             }
             

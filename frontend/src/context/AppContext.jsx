@@ -5,16 +5,7 @@ import { useRef} from 'react';
 
 const AppContext = createContext(null)
 
-// const MOCK_PEERS = [
-//   { id: 1, username: 'alex.rivera',  displayName: 'Alex Rivera',  initials: 'AR', color: '#0EA5E9', lastSeen: 'now' },
-//   { id: 2, username: 'priya.sharma', displayName: 'Priya Sharma', initials: 'PS', color: '#8B5CF6', lastSeen: 'now' },
-//   { id: 3, username: 'noah.chen',    displayName: 'Noah Chen',    initials: 'NC', color: '#F59E0B', lastSeen: 'now' },
-//   { id: 4, username: 'sofia.b',      displayName: 'Sofia Becker', initials: 'SB', color: '#EC4899', lastSeen: 'now' },
-//   { id: 5, username: 'kai.nakamura', displayName: 'Kai Nakamura', initials: 'KN', color: '#14B8A6', lastSeen: 'now' },
-//   { id: 6, username: 'lena.m',       displayName: 'Lena Müller',  initials: 'LM', color: '#F97316', lastSeen: 'now' },
-//   { id: 7, username: 'omar.hassan',  displayName: 'Omar Hassan',  initials: 'OH', color: '#22C55E', lastSeen: 'now' },
-//   { id: 8, username: 'yuki.tanaka',  displayName: 'Yuki Tanaka',  initials: 'YT', color: '#A78BFA', lastSeen: 'now' },
-// ]
+
 
 let toastId = 0
 
@@ -27,6 +18,8 @@ export function AppProvider({ children }) {
   const [sentFiles, setSentFiles]         = useState([])
   const [inTransitCount, setInTransit]    = useState(0)
   const [loading, setLoading]             = useState(true)
+  const [incomingRequest,setIncomingRequest] = useState(null);
+
 
 
   // for validating access token
@@ -103,6 +96,32 @@ export function AppProvider({ children }) {
       setPeers(users);
     })
 
+    socketRef.current.on('incoming-connection-request',(request) => {
+      setIncomingRequest(request);
+    })
+
+    socketRef.current.on('connection-request-failed',({message}) => {
+      setTimeout(() => addToast(message), 400);
+    })
+
+    socketRef.current.on('connection-accepted',(peer) => {
+      console.log('accepted',peer);
+      setConnectedPeer(peer);
+    })
+
+    socketRef.current.on('connection-established',(peer) => {
+      setIncomingRequest(null);
+      console.log('connection established',peer);
+    })
+
+    socketRef.current.on('connection-rejected',({peerUsername}) => {
+      console.log(peerUsername,'rejected')
+      setTimeout(() => addToast(`${peerUsername} rejected the request`), 400);
+    })
+
+    socketRef.current.on('request-rejected', () => {
+      setIncomingRequest(null);
+    })
   }
 
   const disconnectSocket = () => {
@@ -113,6 +132,24 @@ export function AppProvider({ children }) {
     }
 
   }
+
+  const acceptRequest = useCallback((requesterUserId) => {
+    socketRef.current.emit('accept-request',
+      {
+        requesterUserId
+      }
+    )
+  },[]) 
+
+
+  const rejectRequest = useCallback((requesterUserId) => {
+    socketRef.current.emit('reject-request',
+      {
+        requesterUserId
+      }
+    )
+  },[])
+
 
   useEffect(() => {
     if(user){
@@ -162,11 +199,19 @@ export function AppProvider({ children }) {
   }, [])
 
   const connectPeer = useCallback((peer, navigate) => {
-    setConnectedPeer(peer)
-    setSentFiles([])
-    setInTransit(0)
-    navigate('/workspace')
-    setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
+    console.log(peer)
+    socketRef.current.emit('connection-request', 
+      {
+        targetUserId: peer.userId
+      }
+    )
+
+
+    // setConnectedPeer(peer)
+    // setSentFiles([])
+    // setInTransit(0)
+    // navigate('/workspace')
+    // setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
   }, [addToast])
 
   const disconnectPeer = useCallback((navigate) => {
@@ -199,7 +244,10 @@ export function AppProvider({ children }) {
       toasts, addToast,
       sentFiles, inTransitCount,
       sendFiles,
-      socket: socketRef.current
+      socket: () => socketRef.current,
+      incomingRequest,
+      acceptRequest,
+      rejectRequest
     }}>
       {children}
     </AppContext.Provider>

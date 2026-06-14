@@ -1,6 +1,15 @@
 import { Plug, X } from 'lucide-react'
 
-export default function ConnectModal({ peer, onConfirm, onCancel }) {
+export default function ConnectModal({ 
+  peer, 
+  onConfirm, 
+  onCancel,
+  title = "",
+  message = "", 
+  confirmText = "",
+  cancelText = "",
+
+}) {
   if (!peer) return null
 
   return (
@@ -38,14 +47,14 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
           className="text-lg font-700 font-display mb-1.5"
           style={{ color: 'var(--color-text)' }}
         >
-          Connect to peer?
+          {/* Connect to peer? */}{title}
         </h3>
         <p className="text-sm font-body mb-5" style={{ color: 'var(--color-muted)' }}>
-          Establish a direct P2P connection with{' '}
+          {/* Establish a direct P2P connection with{peer.username} */}
           <span className="font-600" style={{ color: 'var(--color-accent)' }}>
-            @{peer.username}
+            {/* {peer.username} */}{message}
           </span>
-          . Files will be shared end-to-end.
+
         </p>
 
         <div
@@ -54,13 +63,14 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
         >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-700 font-display text-white shrink-0"
-            style={{ background: `linear-gradient(135deg, ${peer.color}, ${peer.color}99)` }}
+            style={{ background: `linear-gradient(135deg, #14B8A6, #14B8A699)` }}
           >
-            {peer.initials}
+            {peer.username.slice(0,2).toUpperCase()}
+            {/* {this above should be removed or not } */}
           </div>
           <div>
             <p className="text-sm font-600 font-display" style={{ color: 'var(--color-text)' }}>
-              {peer.displayName}
+              {/* {peer.username} */}
             </p>
             <p className="text-xs font-body flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--color-muted)' }}>
               <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#4ADE80' }} />
@@ -81,10 +91,11 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
             onMouseEnter={e => e.currentTarget.style.background = 'var(--color-border)'}
             onMouseLeave={e => e.currentTarget.style.background = 'var(--color-surface2)'}
           >
-            Cancel
+            {/* Cancel */}{cancelText}
           </button>
           <button
             onClick={() => onConfirm(peer)}
+            // onClick={onConfirm}
             className="flex-1 py-2.5 rounded-xl text-sm font-600 font-display transition-all duration-200 text-white"
             style={{
               background: 'linear-gradient(135deg, #14B8A6, #0EA5E9)',
@@ -93,7 +104,7 @@ export default function ConnectModal({ peer, onConfirm, onCancel }) {
             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            Connect
+            {/* Connect */}{confirmText}
           </button>
         </div>
       </div>

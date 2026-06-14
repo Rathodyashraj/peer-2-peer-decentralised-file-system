@@ -85,7 +85,11 @@ export default function DashboardPage() {
       {pendingPeer && (
         <ConnectModal
           peer={pendingPeer}
-          onConfirm={peer => { setPendingPeer(null); connectPeer(peer, navigate) }}
+          title='Connect to Peer?'
+          message={`Establish a direct P2P connection with ${pendingPeer.username}. Files will be shared end-to-end.`}
+          confirmText='Connect'
+          cancelText='Cancel'
+          onConfirm={peer => {connectPeer(peer, navigate); setPendingPeer(null) }}
           onCancel={() => setPendingPeer(null)}
         />
       )}

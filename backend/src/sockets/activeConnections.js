@@ -1,1 +1,1 @@
-export const activeConnections = new Set();
+export const activeConnections = new Map();

@@ -3,6 +3,7 @@ import { broadCastOnlineUsers, getOnlineUsers, onlineUsers } from './onlineUsers
 import { verifySocketJWT } from '../middlewares/socketAuth.middleware.js';
 import { handleAcceptRequest, handleConnectionRequest, handleRejectRequest } from './connectionManager.js';
 import { pendingRequests } from './pendingRequest.js';
+import { activeConnections } from './activeConnections.js';
 
 export const initialiseSocket = (server) => {
     
@@ -71,6 +72,22 @@ export const initialiseSocket = (server) => {
 
                     if(senderId === userId || recieverId === userId){
                         pendingRequests.delete(requestKey);
+                    }
+                }
+
+                for(const [connectionKey,connection] of activeConnections){
+                    if(connection.user1 === userId || connection.user2 === userId){
+                        const otherUserId = connection.user1 === userId ? connection.user2: connection.user1;
+
+                        const otherUser = onlineUsers.get(otherUserId);
+
+                        if(otherUser){
+                            for(const socketId of otherUser.socketIds){
+                                io.to(socketId).emit('peer-disconnected');
+                            }
+                        }
+
+                        activeConnections.delete(connectionKey);
                     }
                 }
 

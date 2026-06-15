@@ -89,7 +89,13 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
 
 
     const connectionKey = getConnectionKey(requesterUserId,acceptorUserId);
-    activeConnections.add(connectionKey);
+    activeConnections.set(
+        connectionKey,
+        {
+            user1: requesterUserId,
+            user2: acceptorUserId
+        }
+    );
 
 
     const requesterUser = onlineUsers.get(requesterUserId);

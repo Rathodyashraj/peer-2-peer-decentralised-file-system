@@ -106,13 +106,13 @@ export function AppProvider({ children }) {
 
     socketRef.current.on('connection-accepted',(peer) => {
       setConnectedPeer(peer);
-      setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
+      setTimeout(() => addToast(`Connected to @${peer.peerUsername}`), 300)
     })
 
     socketRef.current.on('connection-established',(peer) => {
       setIncomingRequest(null);
       setConnectedPeer(peer);
-      setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
+      setTimeout(() => addToast(`Connected to @${peer.peerUsername}`), 300)
     })
 
     socketRef.current.on('connection-rejected',({peerUsername}) => {
@@ -121,6 +121,11 @@ export function AppProvider({ children }) {
 
     socketRef.current.on('request-rejected', () => {
       setIncomingRequest(null);
+    })
+
+    socketRef.current.on('peer-disconnected', () => {
+      setConnectedPeer(null);
+      setTimeout(() => addToast(`${peerUsername} rejected the request`), 400);
     })
   }
 

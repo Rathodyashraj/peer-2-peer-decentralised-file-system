@@ -127,6 +127,14 @@ export function AppProvider({ children }) {
       setConnectedPeer(null);
       setTimeout(() => addToast(`${peerUsername} rejected the request`), 400);
     })
+
+    socketRef.current.on("request-expired",() => {
+        setIncomingRequest(null);
+
+        setTimeout(() => addToast("Request no longer exist"), 400);
+
+    }
+);
   }
 
   const disconnectSocket = () => {

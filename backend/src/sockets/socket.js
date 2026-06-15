@@ -57,47 +57,177 @@ export const initialiseSocket = (server) => {
 
 
         
+        // socket.on('disconnect', () => {
+
+        //     const userData = onlineUsers.get(userId);
+
+        //     if(!userData) return;
+
+        //     userData.socketIds.delete(socket.id);
+
+        //     if(userData.socketIds.size == 0) {
+
+        //         for(const requestKey of pendingRequests){
+        //             const [senderId,recieverId] = requestKey.split(":")
+
+        //             if(senderId === userId || recieverId === userId){
+        //                 pendingRequests.delete(requestKey);
+        //             }
+
+
+        //             const otherUserId = senderId === userId ? recieverId: senderId;
+
+        //             const otherUser = onlineUsers.get(otherUserId);
+
+        //             if(otherUser){
+        //                 for(const socketId of otherUser.socketIds){
+        //                     io.to(socketId).emit('request-expired');
+        //                 }
+        //             }
+
+
+        //         }
+
+
+        //         for(const [connectionKey,connection] of activeConnections){
+        //             if(connection.user1 === userId || connection.user2 === userId){
+        //                 const otherUserId = connection.user1 === userId ? connection.user2: connection.user1;
+
+        //                 const otherUser = onlineUsers.get(otherUserId);
+
+        //                 if(otherUser){
+        //                     for(const socketId of otherUser.socketIds){
+        //                         io.to(socketId).emit('peer-disconnected');
+        //                     }
+        //                 }
+
+        //                 activeConnections.delete(connectionKey);
+        //             }
+        //         }
+
+        //         onlineUsers.delete(userId);
+        //     }
+            
+        //     // onlineUsers.delete(userId);
+        //     broadCastOnlineUsers(io);
+        
+        // })
+
+
         socket.on('disconnect', () => {
 
             const userData = onlineUsers.get(userId);
 
-            if(!userData) return;
+            if (!userData) return;
 
-            userData.socketIds.delete(socket.id);
+     
+            // ACTIVE CONNECTION CLEANUP
+            // (any socket disconnect kills the session)
+        
+            for (const [connectionKey, connection] of activeConnections) {
 
-            if(userData.socketIds.size == 0) {
+                if (
+                    connection.user1 === userId ||
+                    connection.user2 === userId
+                ) {
 
-                for(const requestKey of pendingRequests){
-                    const [senderId,recieverId] = requestKey.split(":")
+                    // notify all sockets of current user
+                    const currentUser = onlineUsers.get(userId);
 
-                    if(senderId === userId || recieverId === userId){
-                        pendingRequests.delete(requestKey);
-                    }
-                }
+                    if (currentUser) {
 
-                for(const [connectionKey,connection] of activeConnections){
-                    if(connection.user1 === userId || connection.user2 === userId){
-                        const otherUserId = connection.user1 === userId ? connection.user2: connection.user1;
+                        for (const currentSocketId of currentUser.socketIds) {
 
-                        const otherUser = onlineUsers.get(otherUserId);
+                            io.to(currentSocketId).emit(
+                                'peer-disconnected'
+                            );
 
-                        if(otherUser){
-                            for(const socketId of otherUser.socketIds){
-                                io.to(socketId).emit('peer-disconnected');
-                            }
                         }
 
-                        activeConnections.delete(connectionKey);
                     }
+
+                    // notify all sockets of peer
+                    const otherUserId =
+                        connection.user1 === userId
+                            ? connection.user2
+                            : connection.user1;
+
+                    const otherUser = onlineUsers.get(otherUserId);
+
+                    if (otherUser) {
+
+                        for (const otherSocketId of otherUser.socketIds) {
+
+                            io.to(otherSocketId).emit(
+                                'peer-disconnected'
+                            );
+
+                        }
+
+                    }
+
+                    activeConnections.delete(connectionKey);
+
+                }
+
+            }
+
+        
+            // REMOVE THIS SOCKET
+            userData.socketIds.delete(socket.id);
+
+
+            // PENDING REQUEST CLEANUP
+            // (only when last socket disappears)
+
+            if (userData.socketIds.size === 0) {
+
+                for (const requestKey of pendingRequests) {
+
+                    const [senderId, receiverId] =
+                        requestKey.split(":");
+
+                    if (
+                        senderId === userId ||
+                        receiverId === userId
+                    ) {
+
+                        pendingRequests.delete(requestKey);
+
+                        const otherUserId =
+                            senderId === userId
+                                ? receiverId
+                                : senderId;
+
+                        const otherUser =
+                            onlineUsers.get(otherUserId);
+
+                        if (otherUser) {
+
+                            for (const otherSocketId of otherUser.socketIds) {
+
+                                io.to(otherSocketId).emit(
+                                    'request-expired'
+                                );
+
+                            }
+
+                        }
+
+                    }
+
                 }
 
                 onlineUsers.delete(userId);
+
             }
-            
-            // onlineUsers.delete(userId);
+
             broadCastOnlineUsers(io);
-        
-        })
+
+        });
+
+
+
     } )
 
 

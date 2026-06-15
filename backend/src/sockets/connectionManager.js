@@ -1,4 +1,4 @@
-import { onlineUsers } from "./onlineUsers.js";
+import { getOnlineUsers, onlineUsers } from "./onlineUsers.js";
 import { pendingRequests } from "./pendingRequest.js";
 import { activeConnections } from "./activeConnections.js";
 import { getConnectionKey } from "../utils/connectionUtil.js";
@@ -79,6 +79,9 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
 
     // stale request
     if (!pendingRequests.has(requestKey)) {
+
+        socket.emit('request-expired');
+
         return;
     }
 
@@ -118,14 +121,19 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
 
     }
 
-    // notify acceptor
-    socket.emit(
-        "connection-established",
-        {
-            peerUserId: requesterUserId,
-            peerUsername: requesterUser.username
-        }
-    );
+    // notify to all acceptor
+    const acceptorUser = onlineUsers.get(acceptorUserId);
+
+    for(const socketId of acceptorUser.socketIds) {
+        io.to(socketId).emit(
+            "connection-established",
+            {
+                peerUserId: requesterUserId,
+                peerUsername: requesterUser.username
+            }
+        );
+    }
+    
 
 }
 
@@ -139,6 +147,7 @@ export const handleRejectRequest = (io,socket,requesterUserId) => {
 
     // stale request
     if (!pendingRequests.has(requestKey)) {
+        socket.emit('request-expired');
         return;
     }
 

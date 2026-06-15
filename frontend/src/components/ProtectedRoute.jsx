@@ -2,7 +2,7 @@ import { Navigate } from 'react-router'
 import { useApp } from '../context/AppContext'
 
 export default function ProtectedRoute({ children }) {
-  const { user, loading } = useApp()
+  const { user, loading, } = useApp()
 
   if (loading) return <div>Loading...</div>
 

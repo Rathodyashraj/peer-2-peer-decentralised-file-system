@@ -7,5 +7,7 @@ export default function WorkspaceGuard({ children }) {
   if (!user)          return <Navigate to="/login"     replace />
   if (!connectedPeer) return <Navigate to="/dashboard" replace />
 
+
+
   return children
 }

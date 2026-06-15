@@ -105,17 +105,17 @@ export function AppProvider({ children }) {
     })
 
     socketRef.current.on('connection-accepted',(peer) => {
-      console.log('accepted',peer);
       setConnectedPeer(peer);
+      setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
     })
 
     socketRef.current.on('connection-established',(peer) => {
       setIncomingRequest(null);
-      console.log('connection established',peer);
+      setConnectedPeer(peer);
+      setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
     })
 
     socketRef.current.on('connection-rejected',({peerUsername}) => {
-      console.log(peerUsername,'rejected')
       setTimeout(() => addToast(`${peerUsername} rejected the request`), 400);
     })
 
@@ -199,7 +199,6 @@ export function AppProvider({ children }) {
   }, [])
 
   const connectPeer = useCallback((peer, navigate) => {
-    console.log(peer)
     socketRef.current.emit('connection-request', 
       {
         targetUserId: peer.userId
@@ -207,11 +206,8 @@ export function AppProvider({ children }) {
     )
 
 
-    // setConnectedPeer(peer)
     // setSentFiles([])
     // setInTransit(0)
-    // navigate('/workspace')
-    // setTimeout(() => addToast(`Connected to @${peer.username}`), 300)
   }, [addToast])
 
   const disconnectPeer = useCallback((navigate) => {

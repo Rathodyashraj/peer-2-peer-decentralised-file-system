@@ -45,6 +45,7 @@ export default function WorkspacePage() {
   }
 
   if (!connectedPeer) return null
+  // else console.log(connectedPeer);
 
   return (
     <div className="min-h-screen bg-app">
@@ -62,13 +63,13 @@ export default function WorkspacePage() {
                 <div className="relative shrink-0">
                   <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-white font-display"
                     style={{ background: `linear-gradient(135deg, ${connectedPeer.color}, ${connectedPeer.color}99)` }}>
-                    {connectedPeer.initials}
+                    {/* {connectedPeer.initials} */}
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2"
                     style={{ background: '#4ADE80', borderColor: 'var(--color-surface)' }} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold font-display truncate text-app">@{connectedPeer.username}</p>
+                  <p className="text-sm font-bold font-display truncate text-app">@{connectedPeer.peerUsername}</p>
                   <span className="badge-connected mt-1 inline-flex">● Connected</span>
                 </div>
               </div>

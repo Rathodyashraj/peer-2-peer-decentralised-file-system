@@ -18,6 +18,7 @@ import WorkspacePage  from './pages/WorkspacePage.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import PublicRoute   from './components/PublicRoute.jsx'
 import WorkspaceGuard from './components/WorkspaceGuard.jsx'
+import ConnectedPeerRedirect from './components/ConnectedPeerRedirect.jsx'
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -46,7 +47,9 @@ const router = createBrowserRouter(
 
       <Route path="dashboard" element={
         <ProtectedRoute>
-          <DashboardPage />
+          <ConnectedPeerRedirect >
+            <DashboardPage />
+          </ConnectedPeerRedirect>
         </ProtectedRoute>
       } />
 

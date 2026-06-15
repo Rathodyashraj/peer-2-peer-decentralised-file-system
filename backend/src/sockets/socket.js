@@ -41,7 +41,6 @@ export const initialiseSocket = (server) => {
 
         socket.on('connection-request', ({targetUserId}) => {
             //handleConnectionRequest
-            console.log('connection request sent')
             handleConnectionRequest(io,socket,targetUserId)
             
         })

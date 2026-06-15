@@ -66,7 +66,6 @@ export default function ConnectModal({
             style={{ background: `linear-gradient(135deg, #14B8A6, #14B8A699)` }}
           >
             {peer.username.slice(0,2).toUpperCase()}
-            {/* {this above should be removed or not } */}
           </div>
           <div>
             <p className="text-sm font-600 font-display" style={{ color: 'var(--color-text)' }}>
@@ -95,7 +94,6 @@ export default function ConnectModal({
           </button>
           <button
             onClick={() => onConfirm(peer)}
-            // onClick={onConfirm}
             className="flex-1 py-2.5 rounded-xl text-sm font-600 font-display transition-all duration-200 text-white"
             style={{
               background: 'linear-gradient(135deg, #14B8A6, #0EA5E9)',

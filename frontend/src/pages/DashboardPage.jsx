@@ -9,7 +9,6 @@ import ConnectModal from '../components/ConnectModal'
 
 export default function DashboardPage() {
   const { peers, connectPeer } = useApp()
-  const navigate = useNavigate()
   const [search, setSearch]         = useState('')
   const [pendingPeer, setPendingPeer] = useState(null)
 
@@ -86,10 +85,10 @@ export default function DashboardPage() {
         <ConnectModal
           peer={pendingPeer}
           title='Connect to Peer?'
-          message={`Establish a direct P2P connection with ${pendingPeer.username}. Files will be shared end-to-end.`}
+          message={`Establish a direct P2P connection with ${pendingPeer.username}.`}
           confirmText='Connect'
           cancelText='Cancel'
-          onConfirm={peer => {connectPeer(peer, navigate); setPendingPeer(null) }}
+          onConfirm={peer => {connectPeer(peer); setPendingPeer(null) }}
           onCancel={() => setPendingPeer(null)}
         />
       )}

@@ -239,8 +239,35 @@ const logoutUser = asyncHandler(async (req,res) => {
     )
 })
 
+// for storing public key and deviceId
+const registerDevice = asyncHandler(async (req,res) => {
+    const { deviceId, publicKey } = req.body;
 
-export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser};
+    if(!deviceId || !publicKey) throw new ApiError(400,"deviceID and public key are missing ");
+
+
+    const user = await User.findById(req.user_id).select("-password -refreshToken");
+
+    const existingDevice = user.devices.find(device => device.deviceId === deviceId);
+
+    if(!existingDevice){
+        user.devices.push({
+            deviceId,
+            pubicKey
+        })
+    }
+
+    await user.save({validateBeforeSave: false});
+    
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,"Device Registered successfully"));
+
+
+})
+
+export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice};
 
 
 

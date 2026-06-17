@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { deviceSchema } from './device.models.js';
 
 const userSchema = new mongoose.Schema({
     username:{
@@ -24,10 +25,7 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Password is requrired'],
         // select: false
     },
-    publicKey: {
-        type: String,
-        // unique: true,
-    },
+    devices: [deviceSchema],
     refreshToken: {
         type: String,
     }

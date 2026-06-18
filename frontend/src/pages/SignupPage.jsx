@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { User, AtSign, Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import axios from 'axios'
+import { generateIdentity } from '../utils/generateIdentity.js'
 
 export default function SignupPage() {
   const { signup } = useApp()
@@ -36,7 +37,9 @@ export default function SignupPage() {
 
     try {
 
-      const res = await axios.post('http://localhost:8000/register', form,{withCredentials: true});
+      const {deviceId,publicKey,privateKey} = await generateIdentity();
+        
+      const res = await axios.post('http://localhost:8000/register',{ ...form, deviceId, publicKey},{withCredentials: true});
 
       if(res.status === 201){
         signup(res.data.data,navigate);

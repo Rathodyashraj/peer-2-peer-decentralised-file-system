@@ -36,11 +36,9 @@ export default function LoginPage() {
 
     } catch (error) {
 
-      console.error('Login error:', error.response, "\n");
 
       const backendErorr = error.response?.data;
       
-      console.log('Backend error response:', backendErorr, "\n");
 
       if(backendErorr?.errors?.length > 0){
         const field = backendErorr.errors[0].field;

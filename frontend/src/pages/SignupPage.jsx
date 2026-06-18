@@ -4,6 +4,7 @@ import { User, AtSign, Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import axios from 'axios'
 import { generateIdentity } from '../utils/generateIdentity.js'
+import { saveIdentity } from '../utils/indexedDB.js'
 
 export default function SignupPage() {
   const { signup } = useApp()
@@ -42,6 +43,7 @@ export default function SignupPage() {
       const res = await axios.post('http://localhost:8000/register',{ ...form, deviceId, publicKey},{withCredentials: true});
 
       if(res.status === 201){
+        await saveIdentity(deviceId,publicKey);
         signup(res.data.data,navigate);
       }
 

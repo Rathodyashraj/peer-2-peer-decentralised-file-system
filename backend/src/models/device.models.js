@@ -5,7 +5,7 @@ export const deviceSchema = new mongoose.Schema({
         type: String,
         // required: true
     },
-    pubicKey: {
+    publicKey: {
         type: String,
         // required: true
     }

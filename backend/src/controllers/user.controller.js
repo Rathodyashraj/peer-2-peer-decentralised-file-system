@@ -27,7 +27,7 @@ const generateAccessandRefreshToken = async (userid) => {
 
 const signUp = asyncHandler(async (req,res) => {
 
-    const { username, email, password, confirmPassword, publicKey } = req.body;
+    const { username, email, password, confirmPassword, publicKey, deviceId} = req.body;
 
     // check if all the fields are there
     if([username,email,password,confirmPassword].some((field) => !field?.trim())){
@@ -68,7 +68,13 @@ const signUp = asyncHandler(async (req,res) => {
     const user = await User.create({
         username,
         email,
-        password
+        password,
+        devices: [
+            {
+                deviceId,
+                publicKey
+            }
+        ]
     });
 
     const createdUser = await User.findById(user._id).select(

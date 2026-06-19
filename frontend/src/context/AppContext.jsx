@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useRef} from 'react';
+import { ensureIdentity } from '../utils/ensureIdentity';
 
 const AppContext = createContext(null)
 
@@ -27,15 +28,17 @@ export function AppProvider({ children }) {
     try {
       const res = await axios.get('http://localhost:8000/authcheck', {withCredentials: true});
   
-      if( res.status === 200){
-        setUser(res.data.data);
+      if( res.status === 200){    
+        await ensureIdentity(res.data.data.user);    
+        setUser(res.data.data.user); //user gets logged in using access token so check deviceId and private key in indexedDb if there then verify in backend and if not there then generate new
+    
       }
 
     } catch (error) {
 
       try {
 
-        await refreshAccessToken();
+        await refreshAccessToken(); 
       
       } catch (error) {
         
@@ -52,8 +55,9 @@ export function AppProvider({ children }) {
     try {
       const res = await axios.post('http://localhost:8000/refreshtoken',{}, {withCredentials: true});
 
-      if(res.status === 200){
+      if(res.status === 200){ 
 
+        await ensureIdentity(res.data.data.user);
         setUser(res.data.data.user);
 
       }

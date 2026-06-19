@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import axios from 'axios'
 import { getIdentity, saveIdentity } from '../utils/indexedDB'
 import { generateIdentity } from '../utils/generateIdentity'
+import { ensureIdentity } from '../utils/ensureIdentity'
 
 export default function LoginPage() {
   const { login } = useApp()
@@ -33,34 +34,7 @@ export default function LoginPage() {
       const res = await axios.post('http://localhost:8000/login', form, {withCredentials: true});
 
       if( res.status === 201){
-        console.log('till here')
-
-        const identity = await getIdentity();
-        //if identity missing
-        let shouldGenerateDeviceId = false;
-
-        if(!identity || !identity.deviceId || !identity.privateKey){
-          shouldGenerateDeviceId = true;
-        }
-        else{
-
-          const found = res.data.data.user.devices.some(device => device.deviceId === identity.deviceId)
-
-          if(!found){
-            shouldGenerateDeviceId = true;
-          }
-        }
-
-
-        if(shouldGenerateDeviceId){
-          const {deviceId, publicKey, privateKey} = await generateIdentity();
-
-          await axios.post('http://localhost:8000/registerDevice', {deviceId,publicKey},{withCredentials: true});
-
-          await saveIdentity(deviceId,privateKey);
-
-        }
-
+        await ensureIdentity(res.data.data.user);
         login(res.data.data.user,navigate);
       }
 

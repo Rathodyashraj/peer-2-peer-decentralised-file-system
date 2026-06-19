@@ -145,7 +145,6 @@ const loginUser = asyncHandler(async (req,res) => {
         secure: false
     }
 
-
     return res
     .status(201)
     .cookie('accessToken',accessToken,options)
@@ -177,7 +176,7 @@ const authCheck = asyncHandler(async (req,res) => {
         throw new ApiError(401,"Access token Invalid"); // handle from fronend and check if refreshtoken is there then send request to refresh access token endpoint and if not then redirect to login page
     }
 
-    return res.status(200).json( new ApiResponse(200,user,"logged in successfully using accesstoken"))
+    return res.status(200).json( new ApiResponse(200,{user},"logged in successfully using accesstoken"))
 
 
 })

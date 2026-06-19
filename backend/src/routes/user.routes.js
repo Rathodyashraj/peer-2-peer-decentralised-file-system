@@ -15,7 +15,7 @@ router.route('/refreshtoken').post(refreshAccessToken);
 
 router.route('/logout').post(verifyJWT,logoutUser);
 
-// router.route('/registerDevice').post(verifyJWT,registerDevice);
+router.route('/registerDevice').post(verifyJWT,registerDevice);
 
 
 export default router;

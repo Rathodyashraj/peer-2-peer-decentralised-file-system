@@ -252,14 +252,14 @@ const registerDevice = asyncHandler(async (req,res) => {
     if(!deviceId || !publicKey) throw new ApiError(400,"deviceID and public key are missing ");
 
 
-    const user = await User.findById(req.user_id).select("-password -refreshToken");
+    const user = await User.findById(req.user._id).select("-password -refreshToken");
 
     const existingDevice = user.devices.find(device => device.deviceId === deviceId);
 
     if(!existingDevice){
         user.devices.push({
             deviceId,
-            pubicKey
+            publicKey
         })
     }
 

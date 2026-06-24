@@ -244,7 +244,7 @@ const logoutUser = asyncHandler(async (req,res) => {
     )
 })
 
-// for storing public key and deviceId
+// for storing publicKey and deviceId
 const registerDevice = asyncHandler(async (req,res) => {
     const { deviceId, publicKey } = req.body;
 

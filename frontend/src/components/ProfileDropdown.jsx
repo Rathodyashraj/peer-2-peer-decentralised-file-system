@@ -29,8 +29,8 @@ export default function ProfileDropdown({ onClose }) {
             {user?.initials || 'U'}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold font-display truncate text-app">{user?.fullName || 'Demo User'}</p>
-            <p className="text-xs font-body-var truncate text-muted">@{user?.username || 'user'}</p>
+            <p className="text-sm font-semibold font-display truncate text-app">{user?.username || 'Demo User'}</p>
+            {/* <p className="text-xs font-body-var truncate text-muted">@{user?.username || 'user'}</p> */}
             {user?.email && <p className="text-xs font-mono-var mt-0.5 truncate text-muted" style={{ opacity: 0.7 }}>{user.email}</p>}
           </div>
         </div>

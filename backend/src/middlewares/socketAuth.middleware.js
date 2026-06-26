@@ -19,8 +19,11 @@ export const verifySocketJWT = async(socket, next) => {
         const user = await User.findById(decodedToken._id).select('-password -refreshToken');
     
         if(!user) throw new ApiError(401,'Invalid access token');
+
+        const deviceId = socket.handshake.auth.deviceId;
     
         socket.user = user;
+        socket.deviceId = deviceId;
     
         next();
 

@@ -7,7 +7,7 @@ export const getOnlineUsers = (excludeUserId) => {
         if(userId !== excludeUserId){
             users.push({
                 userId,
-                username: data.username
+                username: data.username           
             });
         }
     }
@@ -22,7 +22,7 @@ export const broadCastOnlineUsers = (io) => {
 
         const users = getOnlineUsers(userId);
 
-        for (const socketId of data.socketIds) {
+        for (const socketId of data.sockets.keys()) {
 
             io.to(socketId).emit(
                 "online-users-updated",

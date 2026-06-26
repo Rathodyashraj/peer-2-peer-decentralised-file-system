@@ -1,1 +1,1 @@
-export const pendingRequests = new Set();
+export const pendingRequests = new Map();

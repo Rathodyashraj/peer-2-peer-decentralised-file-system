@@ -3,6 +3,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { useRef} from 'react';
 import { ensureIdentity } from '../utils/ensureIdentity';
+import { getIdentity } from '../utils/indexedDB';
 
 const AppContext = createContext(null)
 
@@ -75,14 +76,19 @@ export function AppProvider({ children }) {
 
   const socketRef = useRef(null);
 
+  
   //connect socket
-  const connectSocket = () => {
+  const connectSocket = async () => {
 
     if(socketRef.current) return; // already connected
-
+    
+    const {deviceId} = await getIdentity();
     // create new socket connection
     socketRef.current = io('http://localhost:8000', {
       withCredentials: true,
+      auth: {
+        deviceId
+      }
     });
 
     socketRef.current.on('connect', () => {
@@ -129,16 +135,35 @@ export function AppProvider({ children }) {
 
     socketRef.current.on('peer-disconnected', () => {
       setConnectedPeer(null);
-      setTimeout(() => addToast(`${peerUsername} rejected the request`), 400);
+      setIncomingRequest(null); ////////////////////
+      setTimeout(() => addToast(`Peer Disconnected`), 400);
     })
 
     socketRef.current.on("request-expired",() => {
-        setIncomingRequest(null);
+      setIncomingRequest(null);
 
-        setTimeout(() => addToast("Request no longer exist"), 400);
+      setTimeout(() => addToast("Request no longer exist"), 400);
 
-    }
-);
+    });
+
+    
+    socketRef.current.on("connected-on-another-device",({ peerUsername }) => {
+      setIncomingRequest(null);
+
+      addToast(`Connected to @${peerUsername} on another device`);
+
+    });
+
+
+    socketRef.current.on("connection-ended-on-another-device",() => {
+
+      setIncomingRequest(null);
+
+      addToast("Connection ended on another device.");
+
+    });
+
+
   }
 
   const disconnectSocket = () => {

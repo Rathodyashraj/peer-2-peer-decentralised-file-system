@@ -54,10 +54,15 @@ export const handleConnectionRequest = (io,socket,targetUserId) => {
     }
 
     //else save request
-    pendingRequests.add(requestKey);
+    pendingRequests.set(requestKey,{
+        requesterUserId,
+        requesterSocketId: socket.id,
+        requesterDeviceId: socket.deviceId,
+        targetUserId
+    });
 
     //send request to all the sockets of target user from the requesting cuurent user
-    for(const socketId of targetUser.socketIds){
+    for(const socketId of targetUser.sockets.keys()){
         io.to(socketId).emit('incoming-connection-request',
             {
                 requesterUserId, /////////
@@ -86,6 +91,7 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
     }
 
 
+    const pendingRequest = pendingRequests.get(requestKey);
 
     // remove pending request
     pendingRequests.delete(requestKey);
@@ -95,8 +101,19 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
     activeConnections.set(
         connectionKey,
         {
-            user1: requesterUserId,
-            user2: acceptorUserId
+            requester: {
+                userId: requesterUserId,
+                socketId: pendingRequest.requesterSocketId,
+                deviceId: pendingRequest.requesterDeviceId,
+                authenticated: false
+            },
+            acceptor: {
+                userId: acceptorUserId,
+                socketId: socket.id,
+                deviceId: socket.deviceId,
+                authenticated: false
+            },
+            state: "pending-authentication"
         }
     );
 
@@ -108,25 +125,48 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
         return;
     }
 
-    // notify requester (all sessions)
-    for (const socketId of requesterUser.socketIds) {
+    // notify requester (only one which connected)
+    io.to(pendingRequest.requesterSocketId).emit(
+        "connection-accepted",
+        {
+            peerUserId: acceptorUserId,
+            peerUsername: acceptorUsername
+        }
+    )
+
+    ///notify remaining requesters
+    for (const socketId of requesterUser.sockets.keys()) {
+        if (socketId === pendingRequest.requesterSocketId) continue;
 
         io.to(socketId).emit(
-            "connection-accepted",
+            "connected-on-another-device",
             {
-                peerUserId: acceptorUserId, /////////
+                peerUserId: acceptorUserId,
                 peerUsername: acceptorUsername
             }
         );
 
     }
 
-    // notify to all acceptor
+
+    //notigy to one that accepted
+    io.to(socket.id).emit(
+        "connection-established",
+        {
+            peerUserId: requesterUserId,
+            peerUsername: requesterUser.username
+        }
+    )
+
+
+    // notify to remaining acceptors
     const acceptorUser = onlineUsers.get(acceptorUserId);
 
-    for(const socketId of acceptorUser.socketIds) {
+    for(const socketId of acceptorUser.sockets.keys()) {
+        if(socketId === socket.id) continue;
+
         io.to(socketId).emit(
-            "connection-established",
+            "connected-on-another-device",
             {
                 peerUserId: requesterUserId,
                 peerUsername: requesterUser.username
@@ -161,7 +201,7 @@ export const handleRejectRequest = (io,socket,requesterUserId) => {
     }
 
     // notify requester
-    for (const socketId of requesterUser.socketIds) {
+    for (const socketId of requesterUser.sockets.keys()) {
 
         io.to(socketId).emit(
             "connection-rejected",

@@ -18,16 +18,19 @@ export const initialiseSocket = (server) => {
 
     io.on('connection', (socket) => {
         const userId = socket.user._id.toString();
+        const deviceId = socket.deviceId;
 
         if(onlineUsers.has(userId)){
-            onlineUsers.get(userId).socketIds.add(socket.id);
+            onlineUsers.get(userId).sockets.set(socket.id,deviceId);
         }
         else{
             onlineUsers.set(
                 userId,
                 {
                     username: socket.user.username,
-                    socketIds: new Set([socket.id])
+                    sockets: new Map([
+                        [socket.id, deviceId]
+                    ])
                 }
             )
         }
@@ -127,46 +130,106 @@ export const initialiseSocket = (server) => {
             for (const [connectionKey, connection] of activeConnections) {
 
                 if (
-                    connection.user1 === userId ||
-                    connection.user2 === userId
+                    connection.requester.socketId === socket.id ||
+                    connection.acceptor.socketId === socket.id
                 ) {
 
-                    // notify all sockets of current user
-                    const currentUser = onlineUsers.get(userId);
+                    // // notify all sockets of current user
+                    // const currentUser = onlineUsers.get(userId);
 
-                    if (currentUser) {
+                    // if (currentUser) {
 
-                        for (const currentSocketId of currentUser.socketIds) {
+                    //     for (const currentSocketId of currentUser.sockets.keys()) {
 
-                            io.to(currentSocketId).emit(
-                                'peer-disconnected'
+                    //         io.to(currentSocketId).emit(
+                    //             'peer-disconnected'
+                    //         );
+
+                    //     }
+
+                    // }
+
+                    
+                    
+                    //notify only one the participating device
+                    io.to(connection.requester.socketId).emit(
+                        "peer-disconnected"
+                    );
+
+                    io.to(connection.acceptor.socketId).emit(
+                        "peer-disconnected"
+                    );
+
+
+
+
+                    // // notify all sockets of peer
+                    // const otherUserId =
+                    //     connection.requester.userId === userId
+                    //         ? connection.acceptor.userId
+                    //         : connection.requester.userId;
+
+                    // const otherUser = onlineUsers.get(otherUserId);
+
+                    // if (otherUser) {
+
+                    //     for (const otherSocketId of otherUser.sockets.keys()) {
+
+                    //         io.to(otherSocketId).emit(
+                    //             'peer-disconnected'
+                    //         );
+
+                    //     }
+
+                    // }
+
+
+
+                    // Notify the remaining requester devices
+                    const requesterUser = onlineUsers.get(
+                        connection.requester.userId
+                    );
+
+                    if (requesterUser) {
+
+                        for (const socketId of requesterUser.sockets.keys()) {
+
+                            if (socketId === connection.requester.socketId)
+                                continue;
+
+                            io.to(socketId).emit(
+                                "connection-ended-on-another-device"
                             );
 
                         }
 
                     }
 
-                    // notify all sockets of peer
-                    const otherUserId =
-                        connection.user1 === userId
-                            ? connection.user2
-                            : connection.user1;
 
-                    const otherUser = onlineUsers.get(otherUserId);
 
-                    if (otherUser) {
+                    // Notify the remaining acceptor devices
+                    const acceptorUser = onlineUsers.get(
+                        connection.acceptor.userId
+                    );
 
-                        for (const otherSocketId of otherUser.socketIds) {
+                    if (acceptorUser) {
 
-                            io.to(otherSocketId).emit(
-                                'peer-disconnected'
+                        for (const socketId of acceptorUser.sockets.keys()) {
+
+                            if (socketId === connection.acceptor.socketId)
+                                continue;
+
+                            io.to(socketId).emit(
+                                "connection-ended-on-another-device"
                             );
 
                         }
 
                     }
+
 
                     activeConnections.delete(connectionKey);
+                    
 
                 }
 
@@ -174,15 +237,15 @@ export const initialiseSocket = (server) => {
 
         
             // REMOVE THIS SOCKET
-            userData.socketIds.delete(socket.id);
+            userData.sockets.delete(socket.id);
 
 
             // PENDING REQUEST CLEANUP
             // (only when last socket disappears)
 
-            if (userData.socketIds.size === 0) {
+            if (userData.sockets.size === 0) {
 
-                for (const requestKey of pendingRequests) {
+                for (const requestKey of pendingRequests.keys()) {
 
                     const [senderId, receiverId] =
                         requestKey.split(":");
@@ -204,7 +267,7 @@ export const initialiseSocket = (server) => {
 
                         if (otherUser) {
 
-                            for (const otherSocketId of otherUser.socketIds) {
+                            for (const otherSocketId of otherUser.sockets.keys()) {
 
                                 io.to(otherSocketId).emit(
                                     'request-expired'

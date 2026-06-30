@@ -4,6 +4,9 @@ import { verifySocketJWT } from '../middlewares/socketAuth.middleware.js';
 import { handleAcceptRequest, handleConnectionRequest, handleRejectRequest } from './connectionManager.js';
 import { pendingRequests } from './pendingRequest.js';
 import { activeConnections } from './activeConnections.js';
+import { getActiveConnectionBySocket } from '../utils/socketConnection.js';
+import { connect } from 'mongoose';
+import { getConnectionKey } from '../utils/connectionUtil.js';
 
 export const initialiseSocket = (server) => {
     
@@ -57,7 +60,145 @@ export const initialiseSocket = (server) => {
             handleRejectRequest(io,socket,requesterUserId);
         })
 
+        socket.on('challenge', ({challenge,phase}) => {
+            
+            const connection = getActiveConnectionBySocket(socket.id);
 
+            if (!connection) return;
+
+            const targetSocketId = connection.requester.socketId === socket.id ? connection.acceptor.socketId : connection.requester.socketId;
+
+            io.to(targetSocketId).emit("challenge", {
+                challenge,
+                phase
+            });
+
+        })
+
+        socket.on('challenge-response', ({challenge,signature,phase}) => {
+
+            const connection = getActiveConnectionBySocket(socket.id);
+
+            if (!connection) return;
+
+            const targetSocketId = connection.requester.socketId === socket.id ? connection.acceptor.socketId: connection.requester.socketId;
+
+            
+
+            io.to(targetSocketId).emit("challenge-response", {
+                challenge,
+                signature,
+                phase
+            });
+
+        })
+
+        socket.on('authentication-complete',() => {
+            const connection = getActiveConnectionBySocket(socket.id);
+
+            if (!connection) return;
+
+            connection.requester.authenticated = true;
+            connection.acceptor.authenticated = true;
+            connection.state = "authenticated";
+
+            // Notify requester
+            io.to(connection.requester.socketId).emit(
+                "authentication-complete"
+            );
+
+            // Notify acceptor
+            io.to(connection.acceptor.socketId).emit(
+                "authentication-complete"
+            );
+        })
+
+
+        socket.on("authentication-failed", ({ reason }) => {
+
+            const connection = getActiveConnectionBySocket(socket.id);
+
+            if (!connection) return;
+
+            const requesterSocketId = connection.requester.socketId;
+            const acceptorSocketId = connection.acceptor.socketId;
+
+            // Notify both participating sockets
+            io.to(requesterSocketId).emit(
+                "authentication-failed",
+                { reason }
+            );
+
+            io.to(acceptorSocketId).emit(
+                "authentication-failed",
+                { reason }
+            );
+
+            // Notify remaining requester devices
+            const requesterUser = onlineUsers.get(connection.requester.userId);
+
+            if (requesterUser) {
+
+                for (const socketId of requesterUser.sockets.keys()) {
+
+                    if (socketId === requesterSocketId) continue;
+
+                    io.to(socketId).emit(
+                        "connection-ended-on-another-device"
+                    );
+
+                }
+
+            }
+
+            // Notify remaining acceptor devices
+            const acceptorUser = onlineUsers.get(connection.acceptor.userId);
+
+            if (acceptorUser) {
+
+                for (const socketId of acceptorUser.sockets.keys()) {
+
+                    if (socketId === acceptorSocketId) continue;
+
+                    io.to(socketId).emit(
+                        "connection-ended-on-another-device"
+                    );
+
+                }
+
+            }
+
+            // Remove the connection
+            const connectionKey = getConnectionKey(
+                connection.requester.userId,
+                connection.acceptor.userId
+            );
+
+            activeConnections.delete(connectionKey);
+
+        });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
 
         
         // socket.on('disconnect', () => {

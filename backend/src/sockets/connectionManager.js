@@ -1,13 +1,29 @@
 import { getOnlineUsers, onlineUsers } from "./onlineUsers.js";
 import { pendingRequests } from "./pendingRequest.js";
-import { activeConnections } from "./activeConnections.js";
+import { activeConnections, isUserBusy} from "./activeConnections.js";
 import { getConnectionKey } from "../utils/connectionUtil.js";
+import { User } from "../models/user.models.js";
 
 
 export const handleConnectionRequest = (io,socket,targetUserId) => {
 
     const requesterUserId = socket.user._id.toString();
     const requesterUsername = socket.user.username;
+
+    if (isUserBusy(requesterUserId)) {
+        socket.emit("connection-request-failed", {
+            message: "You are already connected to another peer."
+        });
+        return;
+    }
+
+    if (isUserBusy(targetUserId)) {
+        socket.emit("connection-request-failed", {
+            message: "User is already connected."
+        });
+        return;
+
+    }
 
     const connectionKey = getConnectionKey(requesterUserId,targetUserId);
 
@@ -75,7 +91,7 @@ export const handleConnectionRequest = (io,socket,targetUserId) => {
 }
 
 
-export const handleAcceptRequest = (io,socket,requesterUserId) => {
+export const handleAcceptRequest = async(io,socket,requesterUserId) => {
 
     const acceptorUserId = socket.user._id.toString();
     const acceptorUsername = socket.user.username;
@@ -117,6 +133,14 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
         }
     );
 
+    //fetching public key
+    const requester = await User.findById(requesterUserId).select("devices");
+    const accepter = await User.findById(acceptorUserId).select("devices");
+
+
+
+    const requesterDevice = requester.devices.find(device => device.deviceId === pendingRequest.requesterDeviceId )
+    const accepterDevice = accepter.devices.find(device => device.deviceId === socket.deviceId )
 
     const requesterUser = onlineUsers.get(requesterUserId);
 
@@ -130,7 +154,8 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
         "connection-accepted",
         {
             peerUserId: acceptorUserId,
-            peerUsername: acceptorUsername
+            peerUsername: acceptorUsername,
+            peerPublicKey: accepterDevice.publicKey
         }
     )
 
@@ -149,12 +174,13 @@ export const handleAcceptRequest = (io,socket,requesterUserId) => {
     }
 
 
-    //notigy to one that accepted
+    //notify to one that accepted
     io.to(socket.id).emit(
         "connection-established",
         {
             peerUserId: requesterUserId,
-            peerUsername: requesterUser.username
+            peerUsername: requesterUser.username,
+            peerPublicKey: requesterDevice.publicKey
         }
     )
 
@@ -210,9 +236,9 @@ export const handleRejectRequest = (io,socket,requesterUserId) => {
             }
         );
 
-        socket.emit('request-rejected');
 
     }
 
+    socket.emit('request-rejected');
 }
 

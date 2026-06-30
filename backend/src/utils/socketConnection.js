@@ -1,4 +1,4 @@
-import { activeConnections } from "./activeConnections.js";
+import { activeConnections } from "../sockets/activeConnections.js";
 
 export const getActiveConnectionBySocket = (socketId) => {
 

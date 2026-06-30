@@ -43,7 +43,7 @@ export default function SignupPage() {
       const res = await axios.post('http://localhost:8000/register',{ ...form, deviceId, publicKey},{withCredentials: true});
 
       if(res.status === 201){
-        await saveIdentity(deviceId,publicKey);
+        await saveIdentity(deviceId,privateKey);
         signup(res.data.data,navigate);
       }
 

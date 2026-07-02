@@ -141,19 +141,14 @@ export function AppProvider({ children }) {
 
       }, 30000);
 
-    
-      // setConnectedPeer(peer);
-      // setIncomingRequest(null); ///////////// ???????????
 
     })
     
     //acceptor side
     socketRef.current.on('connection-established',(peer) => {
-      
-      
+
       pendingPeerRef.current = peer
       setIncomingRequest(null);
-      // setConnectedPeer(peer);
 
     })
 

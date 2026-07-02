@@ -69,25 +69,6 @@ export default function SignupPage() {
      setLoading(false);
     }
 
-    // //axios request to backend would go here
-    // axios.post('http://localhost:8000/register', form)
-    // .then((res) => {
-
-    //   if(res.status === 201){
-    //     console.log(`this is res.data \n`,res.data);
-    //     signup(form,navigate); //
-    //   } else {
-    //     setErrors({ general:'Registration failed' })
-    //   }
-    // })
-    // .catch((err) => {
-    //   console.log("something went wrong in signup page",err);
-    // })
-    
-
-
-
-    // setTimeout(() => signup(form, navigate), 1200)
   }
 
   function handleGoogle() {

@@ -7,6 +7,7 @@ import { activeConnections } from './activeConnections.js';
 import { getActiveConnectionBySocket } from '../utils/socketConnection.js';
 import { connect } from 'mongoose';
 import { getConnectionKey } from '../utils/connectionUtil.js';
+import { handleOffer, handleAnswer, handleIceCandidate } from './signalingManager.js';
 
 export const initialiseSocket = (server) => {
     
@@ -180,6 +181,18 @@ export const initialiseSocket = (server) => {
 
 
 
+        //WebRTC signaling events
+        socket.on("webrtc-offer", ({ offer }) => {
+            handleOffer(io, socket, offer);
+        });
+
+        socket.on("webrtc-answer", ({ answer }) => {
+            handleAnswer(io, socket, answer);
+        });
+
+        socket.on("webrtc-ice-candidate", ({ candidate }) => {
+            handleIceCandidate(io, socket, candidate);
+        });
 
 
 
@@ -192,70 +205,6 @@ export const initialiseSocket = (server) => {
 
 
 
-
-
-
-
-
-        
-        
-
-        
-        // socket.on('disconnect', () => {
-
-        //     const userData = onlineUsers.get(userId);
-
-        //     if(!userData) return;
-
-        //     userData.socketIds.delete(socket.id);
-
-        //     if(userData.socketIds.size == 0) {
-
-        //         for(const requestKey of pendingRequests){
-        //             const [senderId,recieverId] = requestKey.split(":")
-
-        //             if(senderId === userId || recieverId === userId){
-        //                 pendingRequests.delete(requestKey);
-        //             }
-
-
-        //             const otherUserId = senderId === userId ? recieverId: senderId;
-
-        //             const otherUser = onlineUsers.get(otherUserId);
-
-        //             if(otherUser){
-        //                 for(const socketId of otherUser.socketIds){
-        //                     io.to(socketId).emit('request-expired');
-        //                 }
-        //             }
-
-
-        //         }
-
-
-        //         for(const [connectionKey,connection] of activeConnections){
-        //             if(connection.user1 === userId || connection.user2 === userId){
-        //                 const otherUserId = connection.user1 === userId ? connection.user2: connection.user1;
-
-        //                 const otherUser = onlineUsers.get(otherUserId);
-
-        //                 if(otherUser){
-        //                     for(const socketId of otherUser.socketIds){
-        //                         io.to(socketId).emit('peer-disconnected');
-        //                     }
-        //                 }
-
-        //                 activeConnections.delete(connectionKey);
-        //             }
-        //         }
-
-        //         onlineUsers.delete(userId);
-        //     }
-            
-        //     // onlineUsers.delete(userId);
-        //     broadCastOnlineUsers(io);
-        
-        // })
 
 
         socket.on('disconnect', () => {

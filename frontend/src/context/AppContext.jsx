@@ -6,6 +6,12 @@ import { ensureIdentity } from '../utils/ensureIdentity';
 import { getIdentity } from '../utils/indexedDB';
 import { signChallenge } from '../utils/signChallenge.js';
 import { verifySignature } from '../utils/verifySignature';
+import { createOffer, createAnswer, setRemoteOffer, setRemoteAnswer } from '../webRTC/signaling.js';
+import { createPeerConnection, closePeerConnection} from '../webRTC/peerConnection.js';
+import { createDataChannel, registerDataChannelEvents, registerIncomingDataChannel } from '../webRTC/dataChannel.js';
+import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
+
+
 
 const AppContext = createContext(null)
 
@@ -26,7 +32,9 @@ export function AppProvider({ children }) {
   const pendingPeerRef = useRef(null);
   const challengeTimeoutRef = useRef(null);
   const currentChallengeRef = useRef(null);
-
+  const peerConnectionRef = useRef(null);
+  const dataChannelRef = useRef(null);
+  const isRequesterRef = useRef(false);
 
   // for validating access token
   const runAuthCheck = async () => {
@@ -80,7 +88,24 @@ export function AppProvider({ children }) {
 
   const socketRef = useRef(null);
 
+  const handleDataChannelOpen = () => {
+    console.log("Data channel opened.");
+  };
+
+  const handleDataChannelMessage = (message) => {
+      console.log("Received:", message);
+  };
+
+  const handleDataChannelClose = () => {
+      console.log("Data channel closed.");
+  };
+
+  const handleDataChannelError = (error) => {
+      console.error("Data channel error:", error);
+  };
   
+
+
   //connect socket
   const connectSocket = async () => {
 
@@ -119,6 +144,8 @@ export function AppProvider({ children }) {
     })
 
     socketRef.current.on('connection-accepted',(peer) => {
+      isRequesterRef.current = true;
+
       pendingPeerRef.current = peer;
   
       //connection accepted by acceptor
@@ -142,11 +169,14 @@ export function AppProvider({ children }) {
       }, 30000);
 
 
+
+
     })
     
     //acceptor side
     socketRef.current.on('connection-established',(peer) => {
 
+      isRequesterRef.current = false;
       pendingPeerRef.current = peer
       setIncomingRequest(null);
 
@@ -208,7 +238,7 @@ export function AppProvider({ children }) {
 
     })
 
-    socketRef.current.on('authentication-complete',() => {
+    socketRef.current.on('authentication-complete',async() => {
       
       clearTimeout(challengeTimeoutRef.current);
       challengeTimeoutRef.current = null;
@@ -217,11 +247,55 @@ export function AppProvider({ children }) {
       const peer = pendingPeerRef.current;
       setConnectedPeer(peer);
 
+
+
+      //create RTC peer connection and data channel if requester
+      const peerConnection = createPeerConnection();
+      peerConnectionRef.current = peerConnection;
+
+      registerIceCandidate(peerConnection,(candidate) => {
+        socketRef.current.emit('webrtc-ice-candidate',{candidate});
+      });
+
+
+      if(isRequesterRef.current){
+        const dataChannel = createDataChannel(peerConnection);
+        dataChannelRef.current = dataChannel;
+        registerDataChannelEvents(dataChannel,{
+          onOpen: handleDataChannelOpen,
+          onMessage: handleDataChannelMessage,
+          onClose: handleDataChannelClose,
+          onError: handleDataChannelError
+        });
+
+
+        //create offer and send it to the acceptor via signaling server
+        const offer = await createOffer(peerConnection);
+
+        socketRef.current.emit('webRTC-offer',{offer});
+
+
+      }
+      else{
+        //register incoming data channel event
+        
+        registerIncomingDataChannel(peerConnection,dataChannelRef,{
+          onOpen: handleDataChannelOpen,
+          onMessage: handleDataChannelMessage,
+          onClose: handleDataChannelClose,
+          onError: handleDataChannelError
+        });
+
+
+
+      }
+
       pendingPeerRef.current = null;
     
       setIncomingRequest(null);
       setTimeout(() => addToast(`Connected to @${peer.peerUsername}`), 300)
     })
+
 
 
     socketRef.current.on("authentication-failed",({ reason }) => {
@@ -231,6 +305,11 @@ export function AppProvider({ children }) {
       pendingPeerRef.current = null;
       setConnectedPeer(null);
       setIncomingRequest(null);
+
+      //close webRTC connection
+      closePeerConnection(peerConnectionRef.current);
+      peerConnectionRef.current = null;
+      dataChannelRef.current = null;
 
       setTimeout(() => addToast(reason), 300)
 
@@ -252,7 +331,12 @@ export function AppProvider({ children }) {
       challengeTimeoutRef.current = null;
 
       setConnectedPeer(null);
-      setIncomingRequest(null); ////////////////////
+      setIncomingRequest(null); 
+
+      closePeerConnection(peerConnectionRef.current);
+      peerConnectionRef.current = null;
+      dataChannelRef.current = null;
+
       setTimeout(() => addToast(`Peer Disconnected`), 400);
     })
 
@@ -284,6 +368,37 @@ export function AppProvider({ children }) {
     });
 
 
+
+
+    // webrtc signaling events
+
+
+    socketRef.current.on("webrtc-offer", async ({ offer }) => {
+      //set incoming offer as remote description
+      await setRemoteOffer(peerConnectionRef.current, offer);
+      
+      const answer = await createAnswer(peerConnectionRef.current);
+      
+      socketRef.current.emit("webrtc-answer", { answer });
+
+    });
+
+
+    socketRef.current.on("webrtc-answer", async ({ answer }) => {
+      //set incoming answer as remote description
+      await setRemoteAnswer(peerConnectionRef.current, answer);
+
+    });
+
+
+    socketRef.current.on("webrtc-ice-candidate", async ({ candidate }) => {
+      //add incoming ice candidate to peer connection
+      if(!peerConnectionRef.current) return;
+
+      await addRemoteIceCandidate(peerConnectionRef.current, candidate);
+    });
+
+
   }
 
   const disconnectSocket = () => {
@@ -291,6 +406,9 @@ export function AppProvider({ children }) {
     if(socketRef.current){
       socketRef.current.disconnect();
       socketRef.current = null;
+      closePeerConnection(peerConnectionRef.current);
+      peerConnectionRef.current = null;
+      dataChannelRef.current = null;
     }
 
   }

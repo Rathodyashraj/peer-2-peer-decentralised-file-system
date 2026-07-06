@@ -191,7 +191,7 @@ export const initialiseSocket = (server) => {
         });
 
         socket.on("webrtc-ice-candidate", ({ candidate }) => {
-            handleIceCandidate(io, socket, candidate);
+            handleIceCandidate(io, socket, candidate);  
         });
 
 

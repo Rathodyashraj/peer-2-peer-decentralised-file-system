@@ -12,7 +12,6 @@ import { createDataChannel, registerDataChannelEvents, registerIncomingDataChann
 import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
 
 
-
 const AppContext = createContext(null)
 
 
@@ -35,6 +34,7 @@ export function AppProvider({ children }) {
   const peerConnectionRef = useRef(null);
   const dataChannelRef = useRef(null);
   const isRequesterRef = useRef(false);
+  const pendingIceCandidatesRef = useRef([]);
 
   // for validating access token
   const runAuthCheck = async () => {
@@ -89,19 +89,20 @@ export function AppProvider({ children }) {
   const socketRef = useRef(null);
 
   const handleDataChannelOpen = () => {
-    console.log("Data channel opened.");
+    dataChannelRef.current.send("Hello from the other side!");
   };
 
   const handleDataChannelMessage = (message) => {
-      console.log("Received:", message);
+    console.log("Received:", message);
+    // dataChannelRef.current.send(message);
   };
 
   const handleDataChannelClose = () => {
-      console.log("Data channel closed.");
+    console.log("Data channel closed.");
   };
 
   const handleDataChannelError = (error) => {
-      console.error("Data channel error:", error);
+    console.error("Data channel error:", error);
   };
   
 
@@ -252,6 +253,7 @@ export function AppProvider({ children }) {
       //create RTC peer connection and data channel if requester
       const peerConnection = createPeerConnection();
       peerConnectionRef.current = peerConnection;
+      
 
       registerIceCandidate(peerConnection,(candidate) => {
         socketRef.current.emit('webrtc-ice-candidate',{candidate});
@@ -271,8 +273,8 @@ export function AppProvider({ children }) {
 
         //create offer and send it to the acceptor via signaling server
         const offer = await createOffer(peerConnection);
+        socketRef.current.emit('webrtc-offer',{offer});
 
-        socketRef.current.emit('webRTC-offer',{offer});
 
 
       }
@@ -375,10 +377,14 @@ export function AppProvider({ children }) {
 
     socketRef.current.on("webrtc-offer", async ({ offer }) => {
       //set incoming offer as remote description
+
       await setRemoteOffer(peerConnectionRef.current, offer);
+
+      while(pendingIceCandidatesRef.current.length > 0){
+        await addRemoteIceCandidate(peerConnectionRef.current, pendingIceCandidatesRef.current.shift());
+      }
       
       const answer = await createAnswer(peerConnectionRef.current);
-      
       socketRef.current.emit("webrtc-answer", { answer });
 
     });
@@ -386,7 +392,12 @@ export function AppProvider({ children }) {
 
     socketRef.current.on("webrtc-answer", async ({ answer }) => {
       //set incoming answer as remote description
+      
       await setRemoteAnswer(peerConnectionRef.current, answer);
+
+      while(pendingIceCandidatesRef.current.length > 0){
+        await addRemoteIceCandidate(peerConnectionRef.current, pendingIceCandidatesRef.current.shift());
+      }
 
     });
 
@@ -395,7 +406,13 @@ export function AppProvider({ children }) {
       //add incoming ice candidate to peer connection
       if(!peerConnectionRef.current) return;
 
-      await addRemoteIceCandidate(peerConnectionRef.current, candidate);
+      if(peerConnectionRef.current.remoteDescription){
+        await addRemoteIceCandidate(peerConnectionRef.current, candidate);
+      }
+      else{
+        pendingIceCandidatesRef.current.push(candidate);
+      }
+      
     });
 
 

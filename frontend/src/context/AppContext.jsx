@@ -10,6 +10,8 @@ import { createOffer, createAnswer, setRemoteOffer, setRemoteAnswer } from '../w
 import { createPeerConnection, closePeerConnection} from '../webRTC/peerConnection.js';
 import { createDataChannel, registerDataChannelEvents, registerIncomingDataChannel } from '../webRTC/dataChannel.js';
 import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
+import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
+import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
 
 
 const AppContext = createContext(null)
@@ -35,6 +37,12 @@ export function AppProvider({ children }) {
   const dataChannelRef = useRef(null);
   const isRequesterRef = useRef(false);
   const pendingIceCandidatesRef = useRef([]);
+  
+
+  //sessionkey states
+  const ecdhPrivateKeyRef = useRef(null);
+  const peerECDHPublicKeyRef = useRef(null);
+  const sharedSecretRef = useRef(null);
 
   // for validating access token
   const runAuthCheck = async () => {
@@ -88,13 +96,63 @@ export function AppProvider({ children }) {
 
   const socketRef = useRef(null);
 
-  const handleDataChannelOpen = () => {
-    dataChannelRef.current.send("Hello from the other side!");
+  const handleDataChannelOpen = async() => {
+
+    if(!isRequesterRef.current) return;
+
+    const { publicKey, privateKey } = await generateECDHKeyPair();
+    ecdhPrivateKeyRef.current = privateKey;
+    
+    dataChannelRef.current.send(
+      JSON.stringify({  
+        type: "ECDH_PUBLIC_KEY",
+        publicKey: publicKey
+    }));
+    
   };
 
-  const handleDataChannelMessage = (message) => {
-    console.log("Received:", message);
-    // dataChannelRef.current.send(message);
+  const handleDataChannelMessage = async (message) => {
+    
+    const payload = JSON.parse(message);
+
+    if(payload.type !== "ECDH_PUBLIC_KEY") return;
+
+    //requestor
+    if(isRequesterRef.current){
+      const peerPublicKey = await importPeerPublicKey(payload.publicKey);
+      peerECDHPublicKeyRef.current = peerPublicKey;
+
+      const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
+      sharedSecretRef.current = sharedSecret; 
+      
+
+
+      
+    }
+    else{
+      //acceptor
+
+      const peerPublicKey = await importPeerPublicKey(payload.publicKey);
+      peerECDHPublicKeyRef.current = peerPublicKey;
+
+      const { publicKey, privateKey } = await generateECDHKeyPair();
+      ecdhPrivateKeyRef.current = privateKey;
+
+      const sharedSecret = await deriveSharedSecret(privateKey, peerPublicKey);
+      sharedSecretRef.current = sharedSecret;
+
+
+      dataChannelRef.current.send(
+        JSON.stringify({  
+          type: "ECDH_PUBLIC_KEY",
+          publicKey: publicKey
+      }));
+
+    }
+
+
+
+
   };
 
   const handleDataChannelClose = () => {
@@ -338,6 +396,10 @@ export function AppProvider({ children }) {
       closePeerConnection(peerConnectionRef.current);
       peerConnectionRef.current = null;
       dataChannelRef.current = null;
+
+      ecdhPrivateKeyRef.current = null;
+      peerECDHPublicKeyRef.current = null;
+      sharedSecretRef.current = null;
 
       setTimeout(() => addToast(`Peer Disconnected`), 400);
     })

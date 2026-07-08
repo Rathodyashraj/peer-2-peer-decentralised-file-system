@@ -12,7 +12,7 @@ import { createDataChannel, registerDataChannelEvents, registerIncomingDataChann
 import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
 import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
 import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
-
+import { deriveRootKey } from '../crypto/ecdhKeyexchange/deriveRootKey.js';
 
 const AppContext = createContext(null)
 
@@ -43,6 +43,7 @@ export function AppProvider({ children }) {
   const ecdhPrivateKeyRef = useRef(null);
   const peerECDHPublicKeyRef = useRef(null);
   const sharedSecretRef = useRef(null);
+  const rootSessionKeyRef = useRef(null);
 
   // for validating access token
   const runAuthCheck = async () => {
@@ -124,7 +125,14 @@ export function AppProvider({ children }) {
 
       const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
       sharedSecretRef.current = sharedSecret; 
-      
+
+
+      //generate root session key from shared secret
+      const rootSessionKey = await deriveRootKey(sharedSecret);
+      rootSessionKeyRef.current = rootSessionKey;
+
+      sharedSecretRef.current = null;
+
 
 
       
@@ -140,6 +148,11 @@ export function AppProvider({ children }) {
 
       const sharedSecret = await deriveSharedSecret(privateKey, peerPublicKey);
       sharedSecretRef.current = sharedSecret;
+
+      const rootSessionKey = await deriveRootKey(sharedSecret);
+      rootSessionKeyRef.current = rootSessionKey;
+
+      sharedSecretRef.current = null;
 
 
       dataChannelRef.current.send(
@@ -400,6 +413,7 @@ export function AppProvider({ children }) {
       ecdhPrivateKeyRef.current = null;
       peerECDHPublicKeyRef.current = null;
       sharedSecretRef.current = null;
+      rootSessionKeyRef.current = null;
 
       setTimeout(() => addToast(`Peer Disconnected`), 400);
     })

@@ -1,0 +1,33 @@
+//convert sharedsecret to hkdfKey material
+export const importSessionKeyMaterial = async (sharedSecret) => {
+    const sessionKeyMaterial = await window.crypto.subtle.importKey(
+        "raw",
+        sharedSecret,
+        { name: "HKDF" },
+        false,
+        ["deriveKey"]
+    );
+
+    return sessionKeyMaterial;
+}
+
+const HKDF_SALT = new Uint8Array(16);
+
+// generate AESfilekey from hkdfKey material
+export const deriveFileKey = async (sessionKeyMaterial, fileId) => {
+    const fileKey = await window.crypto.subtle.deriveKey(
+        {
+            name: "HKDF",
+            hash: "SHA-256",
+            salt: HKDF_SALT,
+            info: new TextEncoder().encode(`Peershare File Key: ${fileId}`),
+        },
+        sessionKeyMaterial,
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"] 
+    )
+    
+    return fileKey;
+
+}

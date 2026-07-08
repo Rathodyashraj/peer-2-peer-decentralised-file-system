@@ -12,7 +12,8 @@ import { createDataChannel, registerDataChannelEvents, registerIncomingDataChann
 import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
 import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
 import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
-import { deriveRootKey } from '../crypto/ecdhKeyexchange/deriveRootKey.js';
+import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchange/sessionKeys.js';
+
 
 const AppContext = createContext(null)
 
@@ -42,8 +43,8 @@ export function AppProvider({ children }) {
   //sessionkey states
   const ecdhPrivateKeyRef = useRef(null);
   const peerECDHPublicKeyRef = useRef(null);
-  const sharedSecretRef = useRef(null);
-  const rootSessionKeyRef = useRef(null);
+  const sessionKeyMaterialRef = useRef(null);
+
 
   // for validating access token
   const runAuthCheck = async () => {
@@ -124,16 +125,10 @@ export function AppProvider({ children }) {
       peerECDHPublicKeyRef.current = peerPublicKey;
 
       const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
-      sharedSecretRef.current = sharedSecret; 
 
+      sessionKeyMaterialRef.current = await importSessionKeyMaterial(sharedSecret);
 
-      //generate root session key from shared secret
-      const rootSessionKey = await deriveRootKey(sharedSecret);
-      rootSessionKeyRef.current = rootSessionKey;
-
-      sharedSecretRef.current = null;
-
-
+      console.log(sessionKeyMaterialRef.current);
 
       
     }
@@ -147,12 +142,10 @@ export function AppProvider({ children }) {
       ecdhPrivateKeyRef.current = privateKey;
 
       const sharedSecret = await deriveSharedSecret(privateKey, peerPublicKey);
-      sharedSecretRef.current = sharedSecret;
 
-      const rootSessionKey = await deriveRootKey(sharedSecret);
-      rootSessionKeyRef.current = rootSessionKey;
+      sessionKeyMaterialRef.current  = await importSessionKeyMaterial(sharedSecret);
 
-      sharedSecretRef.current = null;
+      console.log(sessionKeyMaterialRef.current);
 
 
       dataChannelRef.current.send(
@@ -412,8 +405,8 @@ export function AppProvider({ children }) {
 
       ecdhPrivateKeyRef.current = null;
       peerECDHPublicKeyRef.current = null;
-      sharedSecretRef.current = null;
-      rootSessionKeyRef.current = null;
+      sessionKeyMaterialRef.current = null;
+
 
       setTimeout(() => addToast(`Peer Disconnected`), 400);
     })
@@ -502,6 +495,11 @@ export function AppProvider({ children }) {
       closePeerConnection(peerConnectionRef.current);
       peerConnectionRef.current = null;
       dataChannelRef.current = null;
+
+      ecdhPrivateKeyRef.current = null;
+      peerECDHPublicKeyRef.current = null;
+      sessionKeyMaterialRef.current = null;
+
     }
 
   }

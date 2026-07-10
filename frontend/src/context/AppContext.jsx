@@ -13,7 +13,7 @@ import { registerIceCandidate, addRemoteIceCandidate } from '../webRTC/ice.js';
 import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
 import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
 import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchange/sessionKeys.js';
-
+import { encryptFile } from '../crypto/aes/encryptFile.js';
 
 const AppContext = createContext(null)
 
@@ -128,7 +128,8 @@ export function AppProvider({ children }) {
 
       sessionKeyMaterialRef.current = await importSessionKeyMaterial(sharedSecret);
 
-      console.log(sessionKeyMaterialRef.current);
+
+
 
       
     }
@@ -145,7 +146,6 @@ export function AppProvider({ children }) {
 
       sessionKeyMaterialRef.current  = await importSessionKeyMaterial(sharedSecret);
 
-      console.log(sessionKeyMaterialRef.current);
 
 
       dataChannelRef.current.send(
@@ -593,7 +593,19 @@ export function AppProvider({ children }) {
   const sendFiles = useCallback((files) => {
     const list = Array.from(files)
     setInTransit(prev => prev + list.length)
-    list.forEach((file, i) => {
+    list.forEach(async (file, i) => {
+
+
+      const fileId = crypto.randomUUID();
+      const fileKey = await deriveFileKey(sessionKeyMaterialRef.current, fileId);
+
+      const encryptedFile = await encryptFile(file, fileKey);
+
+     
+
+
+
+
       setTimeout(() => {
         setSentFiles(prev => [...prev, { id: Date.now() + i, name: file.name, size: file.size, type: file.type, sentAt: new Date().toLocaleTimeString() }])
         setInTransit(prev => Math.max(0, prev - 1))

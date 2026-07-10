@@ -24,7 +24,7 @@ export const deriveFileKey = async (sessionKeyMaterial, fileId) => {
         },
         sessionKeyMaterial,
         { name: "AES-GCM", length: 256 },
-        true,
+        false,
         ["encrypt", "decrypt"] 
     )
     

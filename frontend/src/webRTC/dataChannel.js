@@ -3,6 +3,9 @@ export const createDataChannel = (peerConnection) => {
 }
 
 export const registerDataChannelEvents = ( dataChannel,{ onOpen,onMessage,onClose,onError }) => {
+    
+
+    dataChannel.binaryType = "arraybuffer"
 
     dataChannel.onopen = () => {
 

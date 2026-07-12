@@ -14,6 +14,10 @@ import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
 import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
 import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchange/sessionKeys.js';
 import { encryptFile } from '../crypto/aes/encryptFile.js';
+import { sendFile } from '../transfer/fileTransfer.js';
+import { receiveFile } from '../transfer/fileTransfer.js';
+import { reassembleCiphertext } from '../transfer/fileTransfer.js';
+import { decyrptFile } from '../crypto/aes/decryptFile.js';
 
 const AppContext = createContext(null)
 
@@ -114,52 +118,77 @@ export function AppProvider({ children }) {
   };
 
   const handleDataChannelMessage = async (message) => {
+
+
+    if(message instanceof ArrayBuffer){
+      await receiveFile(message,handleTransferComplete);
+
+      return;
+    }
+
+    if(typeof message !== "string") return;
+
     
     const payload = JSON.parse(message);
 
-    if(payload.type !== "ECDH_PUBLIC_KEY") return;
+    if(payload.type === "ECDH_PUBLIC_KEY"){
 
-    //requestor
-    if(isRequesterRef.current){
-      const peerPublicKey = await importPeerPublicKey(payload.publicKey);
-      peerECDHPublicKeyRef.current = peerPublicKey;
+      //requestor
+      if(isRequesterRef.current){
+        const peerPublicKey = await importPeerPublicKey(payload.publicKey);
+        peerECDHPublicKeyRef.current = peerPublicKey;
 
-      const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
+        const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
 
-      sessionKeyMaterialRef.current = await importSessionKeyMaterial(sharedSecret);
-
-
+        sessionKeyMaterialRef.current = await importSessionKeyMaterial(sharedSecret);
 
 
-      
+        
+      }
+      else{
+        //acceptor
+
+        const peerPublicKey = await importPeerPublicKey(payload.publicKey);
+        peerECDHPublicKeyRef.current = peerPublicKey;
+
+        const { publicKey, privateKey } = await generateECDHKeyPair();
+        ecdhPrivateKeyRef.current = privateKey;
+
+        const sharedSecret = await deriveSharedSecret(privateKey, peerPublicKey);
+
+        sessionKeyMaterialRef.current  = await importSessionKeyMaterial(sharedSecret);
+
+
+
+        dataChannelRef.current.send(
+          JSON.stringify({  
+            type: "ECDH_PUBLIC_KEY",
+            publicKey: publicKey
+        }));
+
+      }
+
     }
-    else{
-      //acceptor
-
-      const peerPublicKey = await importPeerPublicKey(payload.publicKey);
-      peerECDHPublicKeyRef.current = peerPublicKey;
-
-      const { publicKey, privateKey } = await generateECDHKeyPair();
-      ecdhPrivateKeyRef.current = privateKey;
-
-      const sharedSecret = await deriveSharedSecret(privateKey, peerPublicKey);
-
-      sessionKeyMaterialRef.current  = await importSessionKeyMaterial(sharedSecret);
-
-
-
-      dataChannelRef.current.send(
-        JSON.stringify({  
-          type: "ECDH_PUBLIC_KEY",
-          publicKey: publicKey
-      }));
-
-    }
-
-
-
+    await receiveFile(message,handleTransferComplete);
 
   };
+
+
+
+  const handleTransferComplete = async(transfer) => {
+    const {metadata,chunks} = transfer;
+
+    const ciphertext = reassembleCiphertext(chunks);
+
+    //decryption
+    const fileKey = await deriveFileKey(sessionKeyMaterialRef.current,metadata.fileId);
+
+    const iv = new Uint8Array(metadata.iv);
+
+    const plaintext = await decyrptFile(ciphertext,fileKey,iv);
+
+
+  }
 
   const handleDataChannelClose = () => {
     console.log("Data channel closed.");
@@ -590,29 +619,37 @@ export function AppProvider({ children }) {
     if (name) addToast(`Disconnected from @${name}`, 'info')
   }, [connectedPeer, addToast])
 
-  const sendFiles = useCallback((files) => {
-    const list = Array.from(files)
-    setInTransit(prev => prev + list.length)
-    list.forEach(async (file, i) => {
+  const sendFiles = useCallback(async (files) => {
 
+    const list = Array.from(files);
+    setInTransit(prev => prev + list.length);
 
-      const fileId = crypto.randomUUID();
-      const fileKey = await deriveFileKey(sessionKeyMaterialRef.current, fileId);
+    for (let i = 0; i < list.length; i++) {
+      const file = list[i];
 
-      const encryptedFile = await encryptFile(file, fileKey);
+      await sendFile(
+        file,
+        sessionKeyMaterialRef.current,
+        dataChannelRef.current
+      );
 
-     
+      setSentFiles(prev => [
+        ...prev,
+        {
+          id: Date.now() + i,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          sentAt: new Date().toLocaleTimeString()
+        }
+      ]);
 
+      setInTransit(prev => Math.max(0, prev - 1));
 
+      addToast(`Sent: ${file.name}`);
+    }
 
-
-      setTimeout(() => {
-        setSentFiles(prev => [...prev, { id: Date.now() + i, name: file.name, size: file.size, type: file.type, sentAt: new Date().toLocaleTimeString() }])
-        setInTransit(prev => Math.max(0, prev - 1))
-        addToast(`Sent: ${file.name}`)
-      }, 1500 + i * 600)
-    })
-  }, [addToast])
+  }, [addToast]);
 
   return (
     <AppContext.Provider value={{

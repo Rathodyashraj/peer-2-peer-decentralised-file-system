@@ -37,7 +37,10 @@ export default function WorkspacePage() {
 
   function handleSend() {
     if (!selectedFiles.length) return
+
     const toSend = [...selectedFiles]
+
+    
     setSelectedFiles([])
     setSendingFiles(toSend)
     sendFiles(toSend)

@@ -17,7 +17,43 @@ const MESSAGE_TYPES = {
 
 const CHUNK_SIZE = 64 * 1024;
 
+const HIGH_BUFFER_LIMIT = 1024*1024;
 
+const LOW_BUFFER_LIMIT = 256*1024;
+
+
+
+
+// backpressure(app side buffering)
+const waitForBufferDrain = async(dataChannel) => {
+
+    if (dataChannel.bufferedAmount < HIGH_BUFFER_LIMIT) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+
+        dataChannel.bufferedAmountLowThreshold =
+            LOW_BUFFER_LIMIT;
+
+        const handleBufferLow = () => {
+
+            dataChannel.removeEventListener(
+                "bufferedamountlow",
+                handleBufferLow
+            );
+
+            resolve();
+        };
+
+        dataChannel.addEventListener(
+            "bufferedamountlow",
+            handleBufferLow
+        );
+
+    });
+
+};
 
 
 
@@ -46,7 +82,7 @@ const chunkCiphertext = (cipherText) => {
 
 
 
-export const sendFile = async (file,sessionKeyMaterial,dataChannel) => {
+export const sendFile = async (file,sessionKeyMaterial,dataChannel,onProgress) => {
 
     const fileId = crypto.randomUUID();
 
@@ -80,6 +116,8 @@ export const sendFile = async (file,sessionKeyMaterial,dataChannel) => {
 
         const chunk = chunks[i];
 
+        await waitForBufferDrain(dataChannel);
+
         dataChannel.send(
             JSON.stringify({
                 type: MESSAGE_TYPES.FILE_CHUNK,
@@ -89,6 +127,10 @@ export const sendFile = async (file,sessionKeyMaterial,dataChannel) => {
         );
 
         dataChannel.send(chunk.data);
+
+        const progress = Math.round(((i+1)/chunks.length)*100);
+        
+        onProgress?.(progress);
 
     }
 

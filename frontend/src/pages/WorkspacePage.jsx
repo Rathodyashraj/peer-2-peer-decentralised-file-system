@@ -7,7 +7,7 @@ import FileCard from '../components/FileCard'
 import { formatBytes } from '../utils/helpers'
 
 export default function WorkspacePage() {
-  const { connectedPeer, disconnectPeer, sentFiles, inTransitCount, sendFiles } = useApp()
+  const { connectedPeer, disconnectPeer, sentFiles, inTransitCount, sendFiles, receivedFiles } = useApp()
   const navigate = useNavigate()
   const [selectedFiles, setSelectedFiles] = useState([])
   const [dragActive, setDragActive]       = useState(false)
@@ -33,18 +33,50 @@ export default function WorkspacePage() {
     })
   }
 
+
+  async function handleSendFile(file) {
+
+    setSelectedFiles(prev =>
+      prev.filter(f => f !== file)
+    );
+
+    setSendingFiles(prev => [
+      ...prev,
+      {
+        file,
+        progress: 0
+      }
+    ]);
+
+    await sendFiles([file],(progressFile,progress) => {
+      setSendingFiles( prev => prev.map(item => item.file === progressFile ? { ...item, progress} : item));
+    });
+
+    setSendingFiles(prev =>
+      prev.filter(item => item.file !== file)
+    );
+  }
+
   function removeFile(file) { setSelectedFiles(prev => prev.filter(f => f !== file)) }
 
-  function handleSend() {
+
+
+  async function handleSend() {
     if (!selectedFiles.length) return
 
     const toSend = [...selectedFiles]
 
     
-    setSelectedFiles([])
-    setSendingFiles(toSend)
-    sendFiles(toSend)
-    setTimeout(() => setSendingFiles([]), toSend.length * 600 + 2000)
+    setSelectedFiles([]);
+
+    setSendingFiles(toSend.map(file => ({file,progress:0})));
+
+
+    await sendFiles(toSend, (progressFile,progress) => {
+      setSendingFiles(prev => prev.map(item => item.file === progressFile ? { ...item, progress} : item)); 
+    });
+    
+    setSendingFiles([]);
   }
 
   if (!connectedPeer) return null
@@ -148,7 +180,7 @@ export default function WorkspacePage() {
               <div className="card p-5 animate-fade-in">
                 <h3 className="text-sm font-semibold font-display mb-3 text-app">Sending…</h3>
                 <div className="flex flex-col gap-2">
-                  {sendingFiles.map((f, i) => <FileCard key={i} file={f} status="sending" progress={75} />)}
+                  {sendingFiles.map((item, i) => <FileCard key={i} file={item.file} status="sending" progress={item.progress} />)}
                 </div>
               </div>
             )}
@@ -165,7 +197,7 @@ export default function WorkspacePage() {
                   </button>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {selectedFiles.map((f, i) => <FileCard key={i} file={f} onRemove={removeFile} />)}
+                  {selectedFiles.map((f, i) => <FileCard key={i} file={f} onRemove={removeFile} onSend={handleSendFile} />)}
                 </div>
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-theme">
                   <span className="text-xs font-body-var text-muted">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</span>
@@ -180,6 +212,42 @@ export default function WorkspacePage() {
               </div>
             )}
           </div>
+          
+          <div className="card p-5 flex-1">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock size={15} className="text-muted" />
+
+              <h3 className="text-sm font-semibold font-display text-app">
+                Received files
+              </h3>
+
+              {receivedFiles.length > 0 && (
+                <span className="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full font-body-var bg-surface2 text-muted">
+                  {receivedFiles.length}
+                </span>
+              )}
+            </div>
+
+            {receivedFiles.length === 0 ? (
+              <p
+                className="text-sm text-center py-8 font-body-var text-muted"
+                style={{ opacity: 0.6 }}
+              >
+                No files received yet
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                {receivedFiles.map(file => (
+                  <FileCard
+                    key={file.id}
+                    file={file}
+                    status="received"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
       </main>
     </div>

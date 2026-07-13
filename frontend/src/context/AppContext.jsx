@@ -32,6 +32,7 @@ export function AppProvider({ children }) {
   const [peers,setPeers]                  = useState([])
   const [toasts, setToasts]               = useState([])
   const [sentFiles, setSentFiles]         = useState([])
+  const [receivedFiles, setReceivedFiles]   = useState([]);
   const [inTransitCount, setInTransit]    = useState(0)
   const [loading, setLoading]             = useState(true)
   const [incomingRequest,setIncomingRequest] = useState(null);
@@ -186,6 +187,24 @@ export function AppProvider({ children }) {
     const iv = new Uint8Array(metadata.iv);
 
     const plaintext = await decyrptFile(ciphertext,fileKey,iv);
+
+
+
+    //generating the original file from plaintext;
+
+    const incomingFile = new File([plaintext],metadata.fileName,{type: metadata.mimeType});
+    
+    setReceivedFiles(prev => [
+      ...prev, 
+      {
+        id: metadata.fileId,
+        name: incomingFile.name,
+        size: incomingFile.size,
+        type: incomingFile.type,
+        receivedAt: new Date().toLocaleTimeString(),
+        file: incomingFile
+      }
+    ])
 
 
   }
@@ -619,7 +638,7 @@ export function AppProvider({ children }) {
     if (name) addToast(`Disconnected from @${name}`, 'info')
   }, [connectedPeer, addToast])
 
-  const sendFiles = useCallback(async (files) => {
+  const sendFiles = useCallback(async (files,onProgress) => {
 
     const list = Array.from(files);
     setInTransit(prev => prev + list.length);
@@ -630,7 +649,10 @@ export function AppProvider({ children }) {
       await sendFile(
         file,
         sessionKeyMaterialRef.current,
-        dataChannelRef.current
+        dataChannelRef.current,
+        (progress) => {
+          onProgress?.(file,progress);
+        }
       );
 
       setSentFiles(prev => [
@@ -640,7 +662,8 @@ export function AppProvider({ children }) {
           name: file.name,
           size: file.size,
           type: file.type,
-          sentAt: new Date().toLocaleTimeString()
+          sentAt: new Date().toLocaleTimeString(),
+          file: file
         }
       ]);
 
@@ -659,6 +682,7 @@ export function AppProvider({ children }) {
       connectedPeer, connectPeer, disconnectPeer,
       toasts, addToast,
       sentFiles, inTransitCount,
+      receivedFiles,
       sendFiles,
       socket: () => socketRef.current,
       incomingRequest,

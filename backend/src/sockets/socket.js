@@ -195,6 +195,27 @@ export const initialiseSocket = (server) => {
         });
 
 
+        socket.on("disconnect-peer", () => {
+
+            const connection = getActiveConnectionBySocket(socket.id);
+
+            if (!connection) return;
+
+            const targetSocketId = connection.requester.socketId === socket.id ? connection.acceptor.socketId : connection.requester.socketId;
+            
+            io.to(targetSocketId).emit("peer-disconnected");
+            if(connection.requester.socketId === targetSocketId) io.to(connection.acceptor.socketId).emit("peer-disconnected");
+            io.to(connection.requester.socketId).emit("peer-disconnected")
+
+
+            const connectionKey = getConnectionKey(
+                connection.requester.userId,
+                connection.acceptor.userId
+            );
+
+            activeConnections.delete(connectionKey);
+
+        });
 
 
 

@@ -182,7 +182,13 @@ const incomingTransfers = new Map();
 let pendingChunk = null;
 
 
-export const receiveFile = async (message,onTransferComplete) => {
+export const clearFileTransfer = () => {
+    incomingTransfers.clear();
+    pendingChunk = null;
+}
+
+
+export const receiveFile = async (message,onTransferComplete,onProgress) => {
 
     // Binary chunk
     if (message instanceof ArrayBuffer) {

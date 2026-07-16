@@ -14,10 +14,9 @@ import { generateECDHKeyPair } from '../crypto/ecdhKeyexchange/generateECDH.js';
 import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchange/deriveSharedSecret.js';
 import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchange/sessionKeys.js';
 import { encryptFile } from '../crypto/aes/encryptFile.js';
-import { sendFile } from '../transfer/fileTransfer.js';
-import { receiveFile } from '../transfer/fileTransfer.js';
-import { reassembleCiphertext } from '../transfer/fileTransfer.js';
 import { decyrptFile } from '../crypto/aes/decryptFile.js';
+import { sendFile, receiveFile, reassembleCiphertext, clearFileTransfer } from '../transfer/fileTransfer.js';
+
 
 const AppContext = createContext(null)
 
@@ -181,7 +180,7 @@ export function AppProvider({ children }) {
 
     const ciphertext = reassembleCiphertext(chunks);
 
-    //decryption
+    
     const fileKey = await deriveFileKey(sessionKeyMaterialRef.current,metadata.fileId);
 
     const iv = new Uint8Array(metadata.iv);
@@ -440,6 +439,7 @@ export function AppProvider({ children }) {
     })
 
     socketRef.current.on('peer-disconnected', () => {
+
       currentChallengeRef.current = null;
       clearTimeout(challengeTimeoutRef.current);
       challengeTimeoutRef.current = null;
@@ -455,8 +455,16 @@ export function AppProvider({ children }) {
       peerECDHPublicKeyRef.current = null;
       sessionKeyMaterialRef.current = null;
 
+      clearFileTransfer();
 
-      setTimeout(() => addToast(`Peer Disconnected`), 400);
+      setSentFiles([]);
+      setReceivedFiles([]);
+      setInTransit(0);
+
+      
+
+
+      setTimeout(() => addToast(`Peer Disconnected`), 500);
     })
 
     socketRef.current.on("request-expired",() => {
@@ -548,6 +556,15 @@ export function AppProvider({ children }) {
       peerECDHPublicKeyRef.current = null;
       sessionKeyMaterialRef.current = null;
 
+      clearFileTransfer();
+
+      setConnectedPeer(null);
+      setIncomingRequest(null);
+
+      setSentFiles([]);
+      setReceivedFiles([]);
+      setInTransit(0);
+
     }
 
   }
@@ -610,11 +627,46 @@ export function AppProvider({ children }) {
   }, [addToast])
 
   const logout = useCallback((navigate) => {
-    setUser(null)
-    setConnectedPeer(null)
-    setSentFiles([])
-    setInTransit(0)
-    navigate('/login')
+    closePeerConnection(peerConnectionRef.current);
+
+    peerConnectionRef.current = null;
+    dataChannelRef.current = null;
+
+    ecdhPrivateKeyRef.current = null;
+    peerECDHPublicKeyRef.current = null;
+    sessionKeyMaterialRef.current = null;
+
+    pendingIceCandidatesRef.current = [];
+
+    currentChallengeRef.current = null;
+    pendingPeerRef.current = null;
+
+    clearTimeout(challengeTimeoutRef.current);
+    challengeTimeoutRef.current = null;
+
+    clearFileTransfer();
+
+    setConnectedPeer(null);
+    setIncomingRequest(null);
+
+    setSentFiles([]);
+    setReceivedFiles([]);
+    setInTransit(0);
+
+    disconnectSocket();
+
+    setUser(null);
+
+    navigate("/login");
+
+
+
+
+    // setUser(null)
+    // setConnectedPeer(null)
+    // setSentFiles([])
+    // setInTransit(0)
+    // navigate('/login')
   }, [])
 
   const connectPeer = useCallback((peer, navigate) => {
@@ -630,12 +682,41 @@ export function AppProvider({ children }) {
   }, [addToast])
 
   const disconnectPeer = useCallback((navigate) => {
+
+
     const name = connectedPeer?.username
-    setConnectedPeer(null)
-    setSentFiles([])
+
+    socketRef.current.emit("disconnect-peer");
+
+    closePeerConnection(peerConnectionRef.current);
+
+    peerConnectionRef.current = null;
+    dataChannelRef.current = null;
+
+    ecdhPrivateKeyRef.current = null;
+    peerECDHPublicKeyRef.current = null;
+    sessionKeyMaterialRef.current = null;
+
+    pendingIceCandidatesRef.current = [];
+
+    currentChallengeRef.current = null;
+    pendingPeerRef.current = null;
+
+    clearTimeout(challengeTimeoutRef.current);
+    challengeTimeoutRef.current = null;
+
+    clearFileTransfer();
+  
+
+    setConnectedPeer(null);
+    setIncomingRequest(null);
+
+    setSentFiles([]);
+    setReceivedFiles([]);
     setInTransit(0)
     navigate('/dashboard')
-    if (name) addToast(`Disconnected from @${name}`, 'info')
+
+    // if (name) addToast(`Disconnected from @${name}`, 'info')
   }, [connectedPeer, addToast])
 
   const sendFiles = useCallback(async (files,onProgress) => {

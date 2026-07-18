@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useLocation } from 'react-router'
 import { Unplug, CloudUpload, Send, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Navbar from '../components/Navbar'
@@ -9,6 +9,7 @@ import { formatBytes } from '../utils/helpers'
 export default function WorkspacePage() {
   const { connectedPeer, disconnectPeer, sentFiles, inTransitCount, sendFiles, receivedFiles } = useApp()
   const navigate = useNavigate()
+  const location = useLocation()
   const [selectedFiles, setSelectedFiles] = useState([])
   const [dragActive, setDragActive]       = useState(false)
   const [sendingFiles, setSendingFiles]   = useState([])

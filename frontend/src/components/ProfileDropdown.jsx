@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router'
 import { Upload, User, LogOut } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import axios from 'axios'
+import { getInitials } from '../utils/getInitial'
 
 export default function ProfileDropdown({ onClose }) {
   const { user, logout, addToast } = useApp()
@@ -26,11 +27,10 @@ export default function ProfileDropdown({ onClose }) {
       <div className="px-4 py-4 border-b border-theme">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold font-display text-white shrink-0 bg-brand">
-            {user?.initials || 'U'}
+            {getInitials(user?.username)}
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold font-display truncate text-app">{user?.username || 'Demo User'}</p>
-            {/* <p className="text-xs font-body-var truncate text-muted">@{user?.username || 'user'}</p> */}
             {user?.email && <p className="text-xs font-mono-var mt-0.5 truncate text-muted" style={{ opacity: 0.7 }}>{user.email}</p>}
           </div>
         </div>
@@ -39,11 +39,29 @@ export default function ProfileDropdown({ onClose }) {
       <div className="p-2">
         {[
           { icon: Upload, label: 'Change profile image', action: () => { addToast('Coming soon', 'info'); onClose() } },
-          { icon: User,   label: 'View profile',         action: onClose },
+          { icon: User,   label: 'View profile',         action: () => { onClose();
+            navigate("/profile");
+          } },
         ].map(({ icon: Icon, label, action }) => (
-          <button key={label} onClick={action}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium font-body-var text-app transition-colors hover:bg-surface2">
-            <Icon size={16} className="text-muted" /> {label}
+          <button
+              key={label}
+              onClick={action}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium font-body-var transition-colors
+              ${
+                  label === "View profile" && location.pathname === "/profile"
+                      ? "bg-surface2 text-accent"
+                      : "text-app hover:bg-surface2"
+              }`}
+          >
+              <Icon
+                  size={16}
+                  className={
+                      label === "View profile" && location.pathname === "/profile"
+                          ? "text-accent"
+                          : "text-muted"
+                  }
+              />
+              {label}
           </button>
         ))}
         <div className="my-1 border-t border-theme" />

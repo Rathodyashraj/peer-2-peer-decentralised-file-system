@@ -222,7 +222,7 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 const logoutUser = asyncHandler(async (req,res) => {
     
     await User.findByIdAndUpdate(
-        req.user_id,
+        req.user._id,
         {
             $set : {
                 refreshToken: null
@@ -272,17 +272,42 @@ const registerDevice = asyncHandler(async (req,res) => {
 
 })
 
-export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice};
+const changePassword = asyncHandler(async(req,res) => {
+
+
+    const {currentPassword, newPassword} = req.body;
+
+    if([currentPassword,newPassword].some((field) => !field?.trim())){
+        throw new ApiError(400,"All fields are required");
+    }
+
+
+    const user = await User.findById(req.user._id);
+
+    //check old pass if valid then update
+    
+    if(currentPassword === newPassword) throw new ApiError(400, "New Password cannot be same as current password")
+
+    const isPasswordValid = await user.isPasswordCorrect(currentPassword);
+
+    if(!isPasswordValid) throw new ApiError(400, "Current password is incorrect");
+
+
+    user.password = newPassword;
+
+    await user.save();
+
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, "Password Changed Successfully"));
+
+
+
+})
+
+export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice,changePassword};
 
 
 
 
-
-
-
-
-    // if user has accesstoken no matter it has refresh token or not then the session should remain active that is user should be able to login without username/pass
-    // if user has refreshtoken and if accesstoken is expired then user shouldnt be asked for username/pass get direct login and renew accestoken
-    // this should be done by refreshaccessToken controller
-    // if user has refresh token expired then he should be asked to login again using username and pass and generate new accesstokena and referesh token
-    // based on verificatio send response

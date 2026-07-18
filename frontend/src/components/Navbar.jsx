@@ -3,6 +3,7 @@ import { Search, Sun, Moon, Share2 } from 'lucide-react'
 import { Link } from 'react-router'
 import { useApp } from '../context/AppContext'
 import ProfileDropdown from './ProfileDropdown'
+import { getInitials } from '../utils/getInitial'
 
 export default function Navbar({ searchValue, onSearchChange, showSearch = true }) {
   const { darkMode, toggleDark, user } = useApp()
@@ -49,7 +50,7 @@ export default function Navbar({ searchValue, onSearchChange, showSearch = true 
         <button onClick={() => setProfileOpen(v => !v)}
           className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-200 hover:scale-[1.02] border border-theme bg-surface2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold font-display text-white bg-brand">
-            {user?.initials || 'U'}
+            {getInitials(user?.username)}
           </div>
           <span className="text-sm font-medium font-body-var hidden sm:block text-app">@{user?.username || 'user'}</span>
         </button>

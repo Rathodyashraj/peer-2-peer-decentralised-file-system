@@ -1,19 +1,40 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import axios from 'axios'
-import { getIdentity, saveIdentity } from '../utils/indexedDB'
-import { generateIdentity } from '../utils/generateIdentity'
 import { ensureIdentity } from '../utils/ensureIdentity'
 
 export default function LoginPage() {
-  const { login } = useApp()
+  const { login , addToast} = useApp()
   const navigate = useNavigate()
   const [form, setForm]       = useState({ login: '', password: '' })
   const [showPw, setShowPw]   = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors]   = useState({})
+  const [sendOtpLoading, setSendOtpLoading] = useState(false);
+  const [verifyOtpLoading, setVerifyOtpLoading] = useState(false);
+  
+
+  const AUTH_MODE = {
+    LOGIN: "login",
+    EMAIL: "email",
+    OTP: "otp",
+    RESET: "reset",
+  };
+
+  const [mode, setMode] = useState(AUTH_MODE.LOGIN);
+
+  const [resetForm, setResetForm] = useState({
+    email: "",
+    otp: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
 
   function validate() {
     const e = {}
@@ -21,6 +42,18 @@ export default function LoginPage() {
     if (!form.password)        e.password = 'Password is required'
     else if (form.password.length < 6) e.password = 'Minimum 6 characters'
     return e
+  }
+
+  function validateEmail() {
+    const e = {};
+    if (!resetForm.email.trim()) {
+      e.email = "Email is required";
+    } else if (
+      !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(resetForm.email)
+    ) {
+      e.email = "Enter a valid email address";
+    }
+    return e;
   }
 
   async function handleSubmit(ev) {
@@ -67,6 +100,59 @@ export default function LoginPage() {
     setTimeout(() => login({ username: 'google_user' }, navigate), 1000)
   }
 
+  async function handleSendOTP() {
+
+  const e = validateEmail();
+
+  if (Object.keys(e).length) {
+    setErrors(e);
+    return;
+  }
+
+  setErrors({});
+  setSendOtpLoading(true);
+
+  try {
+
+    const res = await axios.post(
+      "http://localhost:8000/sendOtp",
+      {
+        email: resetForm.email,
+      }
+    );
+
+    if (res.status === 200) {
+      setMode(AUTH_MODE.OTP);
+    }
+
+  } catch (error) {
+
+    const backendError = error.response?.data;
+
+    if (backendError?.errors?.length > 0) {
+
+      const field = backendError.errors[0].field;
+
+      setErrors({
+        [field]: backendError.message,
+      });
+
+    } else {
+
+      setErrors({
+        email: backendError?.message || "Failed to send OTP",
+      });
+
+    }
+
+  } finally {
+
+    setSendOtpLoading(false);
+
+  }
+
+}
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden bg-app">
       <div className="glow-blob w-96 h-96 top-1/4 left-1/4"
@@ -82,60 +168,605 @@ export default function LoginPage() {
       </div>
 
       <div className="card-lg w-full max-w-md p-8 shadow-2xl animate-slide-up" style={{ animationDelay: '60ms' }}>
+
         <div className="mb-7">
-          <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">Welcome back</h1>
-          <p className="text-sm text-muted font-body-var">Sign in to continue sharing securely</p>
+
+          {mode === AUTH_MODE.LOGIN && (
+            <>
+              <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">
+                Welcome back
+              </h1>
+
+              <p className="text-sm text-muted font-body-var">
+                Sign in to continue sharing securely
+              </p>
+            </>
+          )}
+
+      
+
+          {mode === AUTH_MODE.OTP && (
+            <>
+              <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">
+                Verify OTP
+              </h1>
+
+              <p className="text-sm text-muted font-body-var">
+                Enter the OTP sent to your email.
+              </p>
+            </>
+          )}
+
+          {mode === AUTH_MODE.EMAIL && (
+            <>
+              <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">
+                Forgot Password
+              </h1>
+
+              <p className="text-sm text-muted font-body-var">
+                Enter your registered email address to receive an OTP.
+              </p>
+            </>
+          )}
+
+          {mode === AUTH_MODE.RESET && (
+            <>
+              <h1 className="text-2xl font-extrabold font-display mb-1.5 text-app">
+                Reset Password
+              </h1>
+
+              <p className="text-sm text-muted font-body-var">
+                Create a new password for your account.
+              </p>
+            </>
+          )}
+
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-app font-body-var">Username or Email</label>
-            <div className="relative">
-              <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
-              <input type="text" value={form.login}
-                onChange={e => setForm(f => ({ ...f, login: e.target.value }))}
-                placeholder="you@example.com"
-                className={`input-field pl-10 ${errors.login ? 'input-field--error' : ''}`} />
+
+        {mode === AUTH_MODE.LOGIN && (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+            <div>
+              <label className="block text-sm font-medium mb-1.5 text-app font-body-var">
+                Username or Email
+              </label>
+
+              <div className="relative">
+                <Mail
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
+                />
+
+                <input
+                  type="text"
+                  value={form.login}
+                  onChange={e =>
+                    setForm(f => ({
+                      ...f,
+                      login: e.target.value
+                    }))
+                  }
+                  placeholder="you@example.com"
+                  className={`input-field pl-10 ${
+                    errors.login ? "input-field--error" : ""
+                  }`}
+                />
+              </div>
+
+              {errors.login && (
+                <p
+                  className="text-xs mt-1 font-body-var"
+                  style={{ color: "#F87171" }}
+                >
+                  {errors.login}
+                </p>
+              )}
             </div>
-            {errors.login && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.login}</p>}
+
+            <div>
+
+              <div className="flex items-center justify-between mb-1.5">
+
+                <label className="text-sm font-medium text-app font-body-var">
+                  Password
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrors({});
+                    setMode(AUTH_MODE.EMAIL);
+                  }}
+                  className="text-xs font-medium text-accent hover:opacity-70 transition-opacity"
+                >
+                  Forgot?
+                </button>
+
+              </div>
+
+              <div className="relative">
+
+                <Lock
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted"
+                />
+
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={form.password}
+                  onChange={e =>
+                    setForm(f => ({
+                      ...f,
+                      password: e.target.value
+                    }))
+                  }
+                  placeholder="••••••••"
+                  className={`input-field pl-10 pr-11 ${
+                    errors.password ? "input-field--error" : ""
+                  }`}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:opacity-70 transition-opacity"
+                >
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+
+              </div>
+
+              {errors.password && (
+                <p
+                  className="text-xs mt-1 font-body-var"
+                  style={{ color: "#F87171" }}
+                >
+                  {errors.password}
+                </p>
+              )}
+
+            </div>
+
+            {errors.general && (
+              <p
+                className="text-sm mt-2 font-body-var text-center"
+                style={{ color: "#F87171" }}
+              >
+                {errors.general}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary mt-1"
+            >
+              {loading ? (
+                <>
+                  <span className="spinner" />
+                  Signing in…
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </button>
+
+          </form>
+        )}
+
+
+        {mode === AUTH_MODE.EMAIL && (
+          <div className="flex flex-col gap-5">
+
+
+            <div>
+
+              <label className="block text-sm font-medium mb-1.5 text-app">
+                Email
+              </label>
+
+              <div className="relative">
+
+                <Mail
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+
+                <input
+                  type="email"
+                  value={resetForm.email}
+                  onChange={e =>
+                    setResetForm({
+                      ...resetForm,
+                      email: e.target.value,
+                    })
+                  }
+                  placeholder="you@example.com"
+                  className="input-field pl-10"
+                />
+
+              </div>
+
+            </div>
+
+
+            {errors.email && (
+              <p
+                className="text-xs mt-1"
+                style={{ color: "#F87171" }}
+              >
+                {errors.email}
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={loading}
+              className="btn-primary"
+              onClick={handleSendOTP}
+            >
+              {sendOtpLoading ? "Sending..." : "Send OTP"}
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setMode(AUTH_MODE.LOGIN);
+              }}
+            >
+              Back to Login
+            </button>
+
           </div>
+        )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium text-app font-body-var">Password</label>
-              <button type="button" className="text-xs font-medium text-accent hover:opacity-70 transition-opacity">Forgot?</button>
+        {mode === AUTH_MODE.OTP && (
+          <div className="flex flex-col gap-5">
+
+            <div>
+
+              <label className="block text-sm font-medium mb-1.5 text-app">
+                OTP
+              </label>
+
+              <input
+                type="text"
+                maxLength={6}
+                value={resetForm.otp}
+                onChange={(e) => {
+                  setResetForm({
+                    ...resetForm,
+                    otp: e.target.value,
+                  });
+
+                  if (errors.otp) {
+                      setErrors((prev) => ({
+                          ...prev,
+                          otp: undefined,
+                      }));
+                  }
+
+                }}
+                placeholder="Enter 6-digit OTP"
+                className="input-field"
+              />
+
+              {errors.otp && (
+                <p
+                  className="text-xs mt-1"
+                  style={{ color: "#F87171" }}
+                >
+                  {errors.otp}
+                </p>
+              )}
+
             </div>
-            <div className="relative">
-              <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted" />
-              <input type={showPw ? 'text' : 'password'} value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="••••••••"
-                className={`input-field pl-10 pr-11 ${errors.password ? 'input-field--error' : ''}`} />
-              <button type="button" onClick={() => setShowPw(v => !v)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:opacity-70 transition-opacity">
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            {errors.password && <p className="text-xs mt-1 font-body-var" style={{ color: '#F87171' }}>{errors.password}</p>}
+
+            <button
+              type="button"
+              disabled={loading}
+              className="btn-primary"
+              onClick={async () => {
+
+                if (!resetForm.otp.trim()) {
+
+                  setErrors({
+                    otp: "OTP is required",
+                  });
+
+                  return;
+                }
+
+                setErrors({});
+                setLoading(true);
+
+                try {
+
+                  const res = await axios.post("http://localhost:8000/verifyOTP",{email: resetForm.email,otp: resetForm.otp});
+
+                  if (res.status === 200) {
+                    setMode(AUTH_MODE.RESET);
+                  }
+
+                } catch (error) {
+
+                  const backendError = error.response?.data;
+
+                  setErrors({
+                    otp: backendError?.message || "Invalid OTP",
+                  });
+
+                } finally {
+
+                  setLoading(false);
+
+                }
+
+              }}
+            >
+              {verifyOtpLoading ? "Verifying..." : "Verify OTP"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSendOTP}
+              className="btn-secondary"
+            >
+              {sendOtpLoading ? "Sending" : "Resend OTP"}
+            </button>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setMode(AUTH_MODE.EMAIL)}
+            >
+              Back
+            </button>
+
           </div>
+        )}
 
-          {errors.general && <p className="text-sm mt-2 font-body-var text-center" style={{ color: '#F87171' }}>{errors.general}</p>}
 
-          <button type="submit" disabled={loading} className="btn-primary mt-1">
-            {loading ? <><span className="spinner" />Signing in…</> : 'Sign in'}
-          </button>
-        </form>
 
-        <div className="divider-or my-5">OR</div>
+        {mode === AUTH_MODE.RESET && (
+          <div className="flex flex-col gap-5">
 
-        <button type="button" onClick={handleGoogle} disabled={loading} className="btn-secondary">
-          <GoogleIcon /> Continue with Google
-        </button>
+            <div>
 
-        <p className="text-center text-sm font-body-var mt-6 text-muted">
-          Don't have an account?{' '}
-          <Link to="/signup" className="font-semibold text-accent hover:opacity-70 transition-opacity">Sign up</Link>
-        </p>
+              <label className="block text-sm font-medium mb-1.5 text-app">
+                New Password
+              </label>
+
+              <div className="relative">
+
+                <Lock
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+
+                <input
+                  type={showNewPw ? "text" : "password"}
+                  value={resetForm.newPassword}
+                  onChange={(e) => {
+                    setResetForm({
+                      ...resetForm,
+                      newPassword: e.target.value,
+                    });
+
+                    if (errors.newPassword) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        newPassword: undefined,
+                      }));
+                    }
+                  }}
+                  className="input-field pl-10 pr-10"
+                />
+
+                {errors.newPassword && (
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: "#F87171" }}
+                  >
+                    {errors.newPassword}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowNewPw(!showNewPw)}
+                >
+                  {showNewPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                </button>
+
+              </div>
+
+            </div>
+
+            <div>
+
+              <label className="block text-sm font-medium mb-1.5 text-app">
+                Confirm Password
+              </label>
+
+              <div className="relative">
+
+                <Lock
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
+                />
+
+                <input
+                  type={showConfirmPw ? "text" : "password"}
+                  value={resetForm.confirmPassword}
+                  onChange={(e) => {
+                    setResetForm({
+                      ...resetForm,
+                      confirmPassword: e.target.value,
+                    });
+
+                    if (errors.confirmPassword) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        confirmPassword: undefined,
+                      }));
+                    }
+                  }}
+                  className="input-field pl-10 pr-10"
+                />
+
+                {errors.confirmPassword && (
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: "#F87171" }}
+                  >
+                    {errors.confirmPassword}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                  onClick={() => setShowConfirmPw(!showConfirmPw)}
+                >
+                  {showConfirmPw ? <EyeOff size={16}/> : <Eye size={16}/>}
+                </button>
+
+              </div>
+
+            </div>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={async () => {
+
+                if (!resetForm.newPassword.trim()) {
+                  setErrors({
+                    newPassword: "New password is required",
+                  });
+                  return;
+                }
+
+                if (resetForm.newPassword.length < 8) {
+                  setErrors({
+                    newPassword: "Password must be at least 8 characters long",
+                  });
+                  return;
+                }
+
+                if (!resetForm.confirmPassword.trim()) {
+                  setErrors({
+                    confirmPassword: "Confirm password is required",
+                  });
+                  return;
+                }
+
+                if (resetForm.confirmPassword.length < 8) {
+                  setErrors({
+                    confirmPassword: "Password must be at least 8 characters long",
+                  });
+                  return;
+                }
+
+                if (resetForm.newPassword !== resetForm.confirmPassword) {
+                  setErrors({
+                    confirmPassword: "Passwords do not match",
+                  });
+                  return;
+                }
+
+                setErrors({});
+
+                try {
+
+                  const res = await axios.post(
+                    "http://localhost:8000/resetpass",
+                    {
+                      email: resetForm.email,
+                      newPassword: resetForm.newPassword,
+                    }
+                  );
+
+                  if (res.status === 200) {
+
+                    setMode(AUTH_MODE.LOGIN);
+
+                    setResetForm({
+                      email: "",
+                      otp: "",
+                      newPassword: "",
+                      confirmPassword: "",
+                    });
+
+                    addToast("Password Changed Successfully");
+
+                  }
+
+                } catch (error) {
+
+                  const backendError = error.response?.data;
+
+                  setErrors({
+                    general: backendError?.message || "Failed to reset password",
+                  });
+
+                }
+
+              }}
+            >
+              Reset Password
+            </button>
+
+            {errors.general && (
+              <p
+                className="text-xs mt-2 text-center"
+                style={{ color: "#F87171" }}
+              >
+                {errors.general}
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setMode(AUTH_MODE.OTP)}
+            >
+              Back
+            </button>
+
+          </div>
+        )}
+
+
+        {mode === AUTH_MODE.LOGIN && (
+          <>
+            <div className="divider-or my-5">OR</div>
+
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={loading}
+              className="btn-secondary"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+
+            <p className="text-center text-sm font-body-var mt-6 text-muted">
+              Don't have an account?{" "}
+              <Link
+                to="/signup"
+                className="font-semibold text-accent hover:opacity-70 transition-opacity"
+              >
+                Sign up
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   )

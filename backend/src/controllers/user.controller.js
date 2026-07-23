@@ -3,6 +3,8 @@ import { ApiError } from "../utils/ApiError.js";
 import {asyncHandler} from "../utils/asyncHandler.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import sendMail from "../utils/sendMail.js"
 
 
 const generateAccessandRefreshToken = async (userid) => {
@@ -306,7 +308,127 @@ const changePassword = asyncHandler(async(req,res) => {
 
 })
 
-export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice,changePassword};
+
+const sendOTP = asyncHandler(async(req,res) => {
+
+    const { email } = req.body;
+
+
+    if (!email?.trim()) throw new ApiError(400, "Email is required");
+
+    const user = await User.findOne({email});
+    
+    if(!user) throw new ApiError(404,"User not registered");
+
+    const otp = Math.floor(100000 + Math.random()*900000).toString();
+
+    user.hashOtp = await bcrypt.hash(otp,10);
+    
+    user.otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10min
+
+    await user.save({validateBeforeSave: false});
+
+
+    await sendMail(
+        user.email,
+        "PeerShare Password Reset OTP",
+        `
+            <div style="font-family: Arial, sans-serif;">
+                <h2>Password Reset</h2>
+
+                <p>Your OTP for resetting your password is:</p>
+
+                <h1 style="letter-spacing:4px;">${otp}</h1>
+
+                <p>This OTP will expire in <strong>10 minutes</strong>.</p>
+
+                <p>If you did not request this password reset, please ignore this email.</p>
+            </div>
+        `
+    );
+
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            "Otp sent successfully"
+        )
+    );
+    
+
+})
+
+const verifyOTP = asyncHandler(async (req, res) => {
+
+    const { email, otp } = req.body;
+
+    if (!email?.trim() || !otp?.trim()) {
+        throw new ApiError(400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(404, "User not registered");
+    }
+
+    if (!user.hashOtp || !user.otpExpiresAt) {
+        throw new ApiError(400, "OTP not found. Please request a new OTP.");
+    }
+
+    if (new Date() > user.otpExpiresAt) {
+
+        user.hashOtp = null;
+        user.otpExpiresAt = null;
+
+        await user.save({ validateBeforeSave: false });
+
+        throw new ApiError(400, "OTP has expired");
+    }
+
+    const isOtpValid = await bcrypt.compare(
+        otp,
+        user.hashOtp
+    );
+
+    if (!isOtpValid) {
+        throw new ApiError(400, "Invalid OTP");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "OTP verified successfully"
+            )
+        );
+
+});
+
+const resetPass = asyncHandler(async(req,res) => {
+    const {email,newPassword} = req.body;
+
+    if([newPassword].some((field) => !field?.trim())){
+        throw new ApiError(400,"All fields are required");
+    }
+
+    const user = await User.findOne({email});
+
+    user.password = newPassword;
+
+    await user.save();
+
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200, "Password Changed Successfully"));
+})
+
+export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice,changePassword,sendOTP,verifyOTP,resetPass};
 
 
 

@@ -28,6 +28,14 @@ const userSchema = new mongoose.Schema({
     devices: [deviceSchema],
     refreshToken: {
         type: String,
+    },
+    hashOtp:{
+        type: String,
+        default: null
+    },
+    otpExpiresAt: {
+        type: Date,
+        default: null
     }
 },{timestamps: true})
 

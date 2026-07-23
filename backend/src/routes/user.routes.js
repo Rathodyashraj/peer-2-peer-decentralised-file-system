@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { authCheck, changePassword, loginUser, logoutUser, refreshAccessToken, registerDevice, signUp } from "../controllers/user.controller.js";
+import { authCheck, changePassword, loginUser, logoutUser, refreshAccessToken, registerDevice, resetPass, sendOTP, signUp, verifyOTP } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 
@@ -19,5 +19,10 @@ router.route('/registerDevice').post(verifyJWT,registerDevice);
 
 router.route('/changePassword').post(verifyJWT,changePassword);
 
+router.route('/sendOtp').post(sendOTP);
+
+router.route('/verifyOtp').post(verifyOTP);
+
+router.route('/resetpass').post(resetPass);
 
 export default router;

@@ -196,22 +196,6 @@ cd backend
 npm install
 ```
 
-Create a `.env` file inside the backend directory:
-
-```env
-PORT=8000
-
-MONGO_URI=your_mongodb_connection_string
-
-ACCESS_TOKEN_SECRET=your_access_token_secret
-ACCESS_TOKEN_EXPIRATION=15m
-
-REFRESH_TOKEN_SECRET=your_refresh_token_secret
-REFRESH_TOKEN_EXPIRATION=7d
-
-CORS_ORIGIN=http://localhost:5173
-```
-
 Start the backend:
 
 ```bash

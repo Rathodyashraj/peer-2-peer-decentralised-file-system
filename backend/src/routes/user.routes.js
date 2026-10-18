@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { authCheck, changePassword, loginUser, logoutUser, refreshAccessToken, registerDevice, resetPass, sendOTP, signUp, verifyOTP } from "../controllers/user.controller.js";
+import { authCheck, changePassword, googleAuth, loginUser, logoutUser, refreshAccessToken, registerDevice, resetPass, sendOTP, signUp, verifyOTP } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 
@@ -24,5 +24,7 @@ router.route('/sendOtp').post(sendOTP);
 router.route('/verifyOtp').post(verifyOTP);
 
 router.route('/resetpass').post(resetPass);
+
+router.route('/googleAuth').post(googleAuth);
 
 export default router;

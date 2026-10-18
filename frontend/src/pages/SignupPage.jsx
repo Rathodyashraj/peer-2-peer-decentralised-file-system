@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext'
 import axios from 'axios'
 import { generateIdentity } from '../utils/generateIdentity.js'
 import { saveIdentity } from '../utils/indexedDB.js'
+import { useGoogleAuth } from '../utils/useGoogleAuth.js'
 
 export default function SignupPage() {
   const { signup } = useApp()
@@ -14,6 +15,7 @@ export default function SignupPage() {
   const [showCfm, setShowCfm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors]   = useState({})
+  const startGoogle = useGoogleAuth({ navigate, setLoading, onError: msg => setErrors({ general: msg }) })
 
   function validate() {
     const e = {}
@@ -72,8 +74,9 @@ export default function SignupPage() {
   }
 
   function handleGoogle() {
+    setErrors({})
     setLoading(true)
-    setTimeout(() => signup({ username: 'google_user' }, navigate), 1000)
+    startGoogle()
   }
 
   const pwStrength = Math.min(4, Math.floor(form.password.length / 2))

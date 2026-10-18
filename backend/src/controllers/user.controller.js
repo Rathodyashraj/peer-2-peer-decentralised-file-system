@@ -5,6 +5,8 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import sendMail from "../utils/sendMail.js"
+import { getGoogleClient } from "../utils/googleClient.js";
+import { onlineUsers } from "../sockets/onlineUsers.js";
 
 
 const generateAccessandRefreshToken = async (userid) => {
@@ -127,6 +129,8 @@ const loginUser = asyncHandler(async (req,res) => {
 
     // if user not exist then send res
     if(!user) throw new ApiError(404,'User not Registered');
+
+    if(!user.password) throw new ApiError(400,"This account uses Google sign-in. Continue with Google, or use Forgot password to set a password.");
     
     // if exist then verify pass and gnerate new accesand refresh token and send res
     const isPasswordValid = await user.isPasswordCorrect(password);
@@ -286,6 +290,8 @@ const changePassword = asyncHandler(async(req,res) => {
 
     const user = await User.findById(req.user._id);
 
+    if(!user.password) throw new ApiError(400,"No password set. Use Forgot password to set one.");
+
     //check old pass if valid then update
     
     if(currentPassword === newPassword) throw new ApiError(400, "New Password cannot be same as current password")
@@ -410,15 +416,31 @@ const verifyOTP = asyncHandler(async (req, res) => {
 });
 
 const resetPass = asyncHandler(async(req,res) => {
-    const {email,newPassword} = req.body;
+    const {email,otp,newPassword} = req.body;
 
-    if([newPassword].some((field) => !field?.trim())){
+    if([email,otp,newPassword].some((field) => typeof field !== "string" || !field.trim())){
         throw new ApiError(400,"All fields are required");
     }
 
+    if(!/^\d{6}$/.test(otp)) throw new ApiError(400,"Invalid OTP");
+
     const user = await User.findOne({email});
 
+    if(!user) throw new ApiError(404,"User not registered");
+
+    // the OTP is what proves ownership of the email, so it must be checked here too
+    if(!user.hashOtp || !user.otpExpiresAt || new Date() > user.otpExpiresAt){
+        throw new ApiError(400,"OTP expired or not requested");
+    }
+
+    const isOtpValid = await bcrypt.compare(otp,user.hashOtp);
+
+    if(!isOtpValid) throw new ApiError(400,"Invalid OTP");
+
     user.password = newPassword;
+    user.hashOtp = null;
+    user.otpExpiresAt = null;
+    user.refreshToken = null; // log out other sessions
 
     await user.save();
 
@@ -428,7 +450,163 @@ const resetPass = asyncHandler(async(req,res) => {
     .json(new ApiResponse(200, "Password Changed Successfully"));
 })
 
-export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice,changePassword,sendOTP,verifyOTP,resetPass};
+// username from email prefix, numeric suffix if taken
+const generateUniqueUsername = async (email) => {
+
+    let base = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_.]/g, "").slice(0, 20);
+
+    if(base.length < 3) base = "user";
+
+    let candidate = base;
+
+    for(let attempt = 0; attempt < 10; attempt++){
+
+        const taken = await User.exists({ username: candidate });
+
+        if(!taken) return candidate;
+
+        candidate = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+    }
+
+    throw new ApiError(500,"Could not generate a username");
+}
+
+
+const googleAuth = asyncHandler(async (req,res) => {
+
+    const { code } = req.body;
+
+    if(typeof code !== "string" || !code.trim()) throw new ApiError(400,"Authorization code is required");
+
+    if(!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET){
+        throw new ApiError(500,"Google sign-in is not configured");
+    }
+
+    const client = getGoogleClient();
+
+    // exchange code -> tokens, then verify the ID token is for our client
+    let payload;
+
+    try {
+
+        const { tokens } = await client.getToken(code);
+
+        if(!tokens?.id_token) throw new Error("Missing id_token");
+
+        const ticket = await client.verifyIdToken({
+            idToken: tokens.id_token,
+            audience: process.env.GOOGLE_CLIENT_ID
+        });
+
+        payload = ticket.getPayload();
+
+    } catch (error) {
+        throw new ApiError(401,"Google authentication failed");
+    }
+
+    const { sub } = payload ?? {};
+
+    if(!sub || !payload.email || payload.email_verified !== true){
+        throw new ApiError(401,"Google email is not verified");
+    }
+
+    const email = payload.email.toLowerCase();
+
+    let isNewUser = false;
+    let linked = false;
+
+    let user = await User.findOne({ googleId: sub });
+
+    if(!user){
+
+        const existing = await User.findOne({ email });
+
+        if(existing){
+
+            if(existing.googleId && existing.googleId !== sub){
+                throw new ApiError(409,"This email is already linked to a different Google account");
+            }
+
+            // signup never verified the email, so anything set before Google proved ownership is wiped
+            existing.googleId = sub;
+            existing.password = undefined;
+            existing.refreshToken = undefined;
+            existing.devices = [];
+            existing.hashOtp = null;
+            existing.otpExpiresAt = null;
+
+            await existing.save({ validateBeforeSave: false });
+
+            // kick live sockets; the existing disconnect handler cleans up presence and connections
+            const io = req.app.get("io");
+            const online = onlineUsers.get(existing._id.toString());
+
+            if(io && online){
+                for(const socketId of [...online.sockets.keys()]){
+                    io.in(socketId).disconnectSockets(true);
+                }
+            }
+
+            user = existing;
+            linked = true;
+
+        }
+        else{
+
+            // retry once if a concurrent request took the username (or created this user)
+            for(let attempt = 0; attempt < 2 && !user; attempt++){
+
+                try {
+
+                    user = await User.create({
+                        username: await generateUniqueUsername(email),
+                        email,
+                        googleId: sub,
+                        devices: []
+                    });
+
+                    isNewUser = true;
+
+                } catch (error) {
+
+                    if(error?.code !== 11000) throw error;
+
+                    if(error.keyPattern?.email || error.keyPattern?.googleId){
+                        user = await User.findOne({ googleId: sub });
+                        if(!user) throw new ApiError(409,"An account with this email already exists. Try again.");
+                    }
+                    else if(attempt === 1){
+                        throw new ApiError(500,"Could not create account");
+                    }
+
+                }
+            }
+        }
+    }
+
+    const {accessToken,refreshToken} = await generateAccessandRefreshToken(user._id);
+
+    const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken"
+    )
+
+    const options = {
+        httpOnly: true,
+        secure: false
+    }
+
+    return res
+    .status(200)
+    .cookie('accessToken',accessToken,options)
+    .cookie('refreshToken',refreshToken,options)
+    .json(
+        new ApiResponse(200,{
+            user: loggedInUser, isNewUser, linked
+        },"Logged in with Google")
+    );
+})
+
+export {signUp,loginUser,authCheck,refreshAccessToken,logoutUser,registerDevice,changePassword,sendOTP,verifyOTP,resetPass,googleAuth};
 
 
 

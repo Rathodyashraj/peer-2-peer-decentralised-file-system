@@ -4,6 +4,7 @@ import { Mail, Lock, Eye, EyeOff, Share2 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import axios from 'axios'
 import { ensureIdentity } from '../utils/ensureIdentity'
+import { useGoogleAuth } from '../utils/useGoogleAuth'
 
 export default function LoginPage() {
   const { login , addToast} = useApp()
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [errors, setErrors]   = useState({})
   const [sendOtpLoading, setSendOtpLoading] = useState(false);
   const [verifyOtpLoading, setVerifyOtpLoading] = useState(false);
+  const startGoogle = useGoogleAuth({ navigate, setLoading, onError: msg => setErrors({ general: msg }) });
   
 
   const AUTH_MODE = {
@@ -96,8 +98,9 @@ export default function LoginPage() {
   }
 
   function handleGoogle() {
+    setErrors({})
     setLoading(true)
-    setTimeout(() => login({ username: 'google_user' }, navigate), 1000)
+    startGoogle()
   }
 
   async function handleSendOTP() {
@@ -687,6 +690,7 @@ export default function LoginPage() {
                     "http://localhost:8000/resetpass",
                     {
                       email: resetForm.email,
+                      otp: resetForm.otp,
                       newPassword: resetForm.newPassword,
                     }
                   );

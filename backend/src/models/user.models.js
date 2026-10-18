@@ -22,8 +22,15 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        required: [true, 'Password is requrired'],
+        // Google-only accounts have no password
+        required: [function () { return !this.googleId; }, 'Password is requrired'],
         // select: false
+    },
+    // Google account subject id; no default, a null default would break the sparse unique index
+    googleId: {
+        type: String,
+        unique: true,
+        sparse: true
     },
     devices: [deviceSchema],
     refreshToken: {
@@ -42,7 +49,7 @@ const userSchema = new mongoose.Schema({
 
 // make this function call before save event occurs 
 userSchema.pre('save', async function(){
-    if(!this.isModified("password")) return;
+    if(!this.isModified("password") || !this.password) return;
     this.password = await bcrypt.hash(this.password,10);
 })
 

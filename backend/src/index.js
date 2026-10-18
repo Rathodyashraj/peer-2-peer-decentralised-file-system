@@ -15,6 +15,7 @@ connectDB()
     const server = http.createServer(app);
     // mount socket.io on the http server
     const io = initialiseSocket(server);
+    app.set("io", io); // lets controllers force-disconnect sockets
 
     server.listen(process.env.PORT || 8000,() => {
         console.log(`server listening on http://localhost:${process.env.PORT}`);

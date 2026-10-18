@@ -16,6 +16,7 @@ import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchan
 import { encryptFile } from '../crypto/aes/encryptFile.js';
 import { decyrptFile } from '../crypto/aes/decryptFile.js';
 import { sendFile, receiveFile, reassembleCiphertext, clearFileTransfer, handleFileAck } from '../transfer/fileTransfer.js';
+import { CHAT_TYPES, sendChatMessage, receiveChatMessage } from '../transfer/messageTransfer.js';
 
 
 const AppContext = createContext(null)
@@ -35,6 +36,7 @@ export function AppProvider({ children }) {
   const [incomingFiles, setIncomingFiles]   = useState([]); // files still being received / decrypted
   const [inTransitCount, setInTransit]    = useState(0)
   const [sessionReady, setSessionReady]   = useState(false) // ECDH session key derived on this side
+  const [messages, setMessages]           = useState([]) // chat, memory only: { id, direction, text, time, status }
   const [loading, setLoading]             = useState(true)
   const [incomingRequest,setIncomingRequest] = useState(null);
   const pendingPeerRef = useRef(null);
@@ -220,6 +222,43 @@ export function AppProvider({ children }) {
       return;
     }
 
+    if(payload.type === CHAT_TYPES.CHAT_MESSAGE){
+      const m = await receiveChatMessage(payload, sessionKeyMaterialRef.current, dataChannelRef.current);
+
+      if(!m){
+        addToast("A message could not be decrypted", "error");
+        return;
+      }
+
+      setMessages(prev => {
+        // ignore a resent messageId
+        if(prev.some(x => x.id === m.messageId)) return prev;
+
+        return [
+          ...prev,
+          {
+            id: m.messageId,
+            direction: "in",
+            text: m.text,
+            time: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            status: "delivered"
+          }
+        ];
+      });
+
+      return;
+    }
+
+    if(payload.type === CHAT_TYPES.CHAT_ACK){
+      setMessages(prev => prev.map(x =>
+        x.id === payload.messageId && x.direction === "out"
+          ? { ...x, status: payload.status === "delivered" ? "delivered" : "failed" }
+          : x
+      ));
+
+      return;
+    }
+
     // acks for files we are sending
     if(handleFileAck(payload)) return;
 
@@ -283,6 +322,7 @@ export function AppProvider({ children }) {
     clearFileTransfer();
     setSessionReady(false);
     setIncomingFiles([]);
+    setMessages([]);
   };
 
   const handleDataChannelClose = (sessionId) => {
@@ -867,6 +907,46 @@ export function AppProvider({ children }) {
 
   }, [addToast]);
 
+  // returns true if the message went out (so the UI can clear its input)
+  const sendMessage = useCallback(async (text) => {
+
+    if(!sessionKeyMaterialRef.current || dataChannelRef.current?.readyState !== "open"){
+      addToast("Secure session not ready", "error");
+      return false;
+    }
+
+    const sessionId = dcSessionIdRef.current;
+
+    try {
+
+      const m = await sendChatMessage(text, sessionKeyMaterialRef.current, dataChannelRef.current);
+
+      // disconnected while encrypting -> messages were already wiped
+      if(sessionId !== dcSessionIdRef.current) return false;
+
+      setMessages(prev => [
+        ...prev,
+        {
+          id: m.messageId,
+          direction: "out",
+          text: m.text,
+          time: new Date(m.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: "sending"
+        }
+      ]);
+
+      return true;
+
+    } catch (error) {
+
+      console.error("Message send failed:", error);
+      addToast("Message could not be sent", "error");
+      return false;
+
+    }
+
+  }, [addToast]);
+
   return (
     <AppContext.Provider value={{
       darkMode, toggleDark,
@@ -879,6 +959,8 @@ export function AppProvider({ children }) {
       incomingFiles,
       sessionReady,
       sendFiles,
+      messages,
+      sendMessage,
       socket: () => socketRef.current,
       incomingRequest,
       acceptRequest,

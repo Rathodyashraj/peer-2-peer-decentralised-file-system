@@ -4,6 +4,7 @@ import { Unplug, CloudUpload, Send, Clock } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import Navbar from '../components/Navbar'
 import FileCard from '../components/FileCard'
+import ChatPanel from '../components/ChatPanel'
 import { formatBytes } from '../utils/helpers'
 
 export default function WorkspacePage() {
@@ -213,6 +214,8 @@ export default function WorkspacePage() {
                 <p className="text-sm font-body-var text-muted">You're securely connected. Drop files above to start sharing.</p>
               </div>
             )}
+
+            <ChatPanel />
           </div>
           
           <div className="card p-5 flex-1">

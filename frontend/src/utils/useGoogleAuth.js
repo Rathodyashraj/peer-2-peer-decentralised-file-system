@@ -3,10 +3,10 @@ import axios from 'axios'
 import { useApp } from '../context/AppContext'
 import { ensureIdentity } from './ensureIdentity'
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
 
 // shared by LoginPage and SignupPage; returns start() to open the Google popup
-export function useGoogleAuth({ navigate, setLoading, onError }) {
+function useConfiguredGoogleAuth({ navigate, setLoading, onError }) {
   const { login, signup, addToast } = useApp()
 
   const googleLogin = useGoogleLogin({
@@ -46,13 +46,16 @@ export function useGoogleAuth({ navigate, setLoading, onError }) {
     },
   })
 
-  return () => {
-    if (!GOOGLE_CLIENT_ID) {
-      setLoading(false)
-      onError('Google sign-in is not configured')
-      return
-    }
+  return () => googleLogin()
+}
 
-    googleLogin()
+// without a client id the Google script throws on init and crashes the page, so never load it
+function useUnconfiguredGoogleAuth({ setLoading, onError }) {
+  return () => {
+    setLoading(false)
+    onError('Google sign-in is not configured')
   }
 }
+
+// picked once at module load, so hook order never changes between renders
+export const useGoogleAuth = GOOGLE_CLIENT_ID ? useConfiguredGoogleAuth : useUnconfiguredGoogleAuth

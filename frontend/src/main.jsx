@@ -9,6 +9,7 @@ import {
   RouterProvider,
 } from 'react-router'
 import { GoogleOAuthProvider } from '@react-oauth/google'
+import { GOOGLE_CLIENT_ID } from './utils/useGoogleAuth.js'
 import { AppProvider } from './context/AppContext.jsx'
 
 import Layout         from './Layout.jsx'
@@ -70,12 +71,19 @@ const router = createBrowserRouter(
   )
 )
 
+// only load Google's script when a client id is configured
+const app = (
+  <AppProvider>
+    <RouterProvider router={router} />
+  </AppProvider>
+)
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''}>
-      <AppProvider>
-        <RouterProvider router={router} />
-      </AppProvider>
-    </GoogleOAuthProvider>
+    {GOOGLE_CLIENT_ID ? (
+      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+        {app}
+      </GoogleOAuthProvider>
+    ) : app}
   </StrictMode>,
 )

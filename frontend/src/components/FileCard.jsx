@@ -14,13 +14,24 @@ const CATEGORY_ICONS = {
   generic: File,
 }
 
-export default function FileCard({ file, onRemove, onSend, progress, status }) {
+const STAGE_LABELS = {
+  encrypting: () => 'Encrypting…',
+  sending:    (p) => `${p}% received by peer`,
+  confirming: () => 'Waiting for peer to decrypt…',
+  receiving:  (p) => `${p}%`,
+  decrypting: () => 'Decrypting…',
+}
+
+export default function FileCard({ file, onRemove, onSend, progress, status, stage }) {
   const category = getFileCategory(file)
   const color = getFileCategoryColor(category)
   const Icon = CATEGORY_ICONS[category] || File
   const isSending = status === 'sending'
   const isDone = status === 'done'
   const isReceived = status === 'received'
+  const isReceiving = status === 'receiving'
+  const isInProgress = isSending || isReceiving
+  const stageLabel = isInProgress && STAGE_LABELS[stage]?.(progress || 0)
 
 
 
@@ -88,7 +99,13 @@ export default function FileCard({ file, onRemove, onSend, progress, status }) {
           )}
         </div>
 
-        {isSending && (
+        {stageLabel && (
+          <p className="text-xs font-body mt-0.5" style={{ color: 'var(--color-muted)', opacity: 0.8 }}>
+            {stageLabel}
+          </p>
+        )}
+
+        {isInProgress && (
           <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'var(--color-border)' }}>
             <div
               className="h-full progress-fill animate-progress"
@@ -170,7 +187,7 @@ export default function FileCard({ file, onRemove, onSend, progress, status }) {
 
 
 
-      {isSending && (
+      {isInProgress && (
         <div className="w-5 h-5 rounded-full border-2 border-transparent animate-spin shrink-0"
           style={{ borderTopColor: 'var(--color-accent)', borderRightColor: 'var(--color-accent)' }}
         />

@@ -15,7 +15,7 @@ import { deriveSharedSecret, importPeerPublicKey } from '../crypto/ecdhKeyexchan
 import { importSessionKeyMaterial, deriveFileKey } from '../crypto/ecdhKeyexchange/sessionKeys.js';
 import { encryptFile } from '../crypto/aes/encryptFile.js';
 import { decyrptFile } from '../crypto/aes/decryptFile.js';
-import { sendFile, receiveFile, reassembleCiphertext, clearFileTransfer } from '../transfer/fileTransfer.js';
+import { sendFile, receiveFile, reassembleCiphertext, clearFileTransfer, handleFileAck } from '../transfer/fileTransfer.js';
 
 
 const AppContext = createContext(null)
@@ -32,7 +32,9 @@ export function AppProvider({ children }) {
   const [toasts, setToasts]               = useState([])
   const [sentFiles, setSentFiles]         = useState([])
   const [receivedFiles, setReceivedFiles]   = useState([]);
+  const [incomingFiles, setIncomingFiles]   = useState([]); // files still being received / decrypted
   const [inTransitCount, setInTransit]    = useState(0)
+  const [sessionReady, setSessionReady]   = useState(false) // ECDH session key derived on this side
   const [loading, setLoading]             = useState(true)
   const [incomingRequest,setIncomingRequest] = useState(null);
   const pendingPeerRef = useRef(null);
@@ -48,6 +50,11 @@ export function AppProvider({ children }) {
   const ecdhPrivateKeyRef = useRef(null);
   const peerECDHPublicKeyRef = useRef(null);
   const sessionKeyMaterialRef = useRef(null);
+
+  // datachannel messages are processed one at a time, in arrival order
+  const dcQueueRef = useRef(Promise.resolve());
+  // bumped for every new peer connection so late events from an old channel are ignored
+  const dcSessionIdRef = useRef(0);
 
 
   // for validating access token
@@ -117,11 +124,50 @@ export function AppProvider({ children }) {
     
   };
 
+  const receiveHandlers = {
+
+    onProgress: (metadata, progress) => {
+      const stage = progress >= 100 ? "decrypting" : "receiving";
+
+      setIncomingFiles(prev => {
+        const exists = prev.some(item => item.id === metadata.fileId);
+
+        if(exists){
+          return prev.map(item => item.id === metadata.fileId ? { ...item, progress, stage } : item);
+        }
+
+        return [
+          ...prev,
+          {
+            id: metadata.fileId,
+            name: metadata.fileName,
+            size: metadata.fileSize,
+            type: metadata.mimeType,
+            progress,
+            stage
+          }
+        ];
+      });
+    },
+
+    // decryption errors propagate so receiveFile can report them to the sender
+    onTransferComplete: async (transfer) => {
+      await handleTransferComplete(transfer);
+      setIncomingFiles(prev => prev.filter(item => item.id !== transfer.metadata.fileId));
+    },
+
+    onTransferFailed: (metadata) => {
+      setIncomingFiles(prev => prev.filter(item => item.id !== metadata.fileId));
+      addToast(`Could not receive ${metadata.fileName}`, "error");
+    }
+
+  };
+
   const handleDataChannelMessage = async (message) => {
 
 
     if(message instanceof ArrayBuffer){
-      await receiveFile(message,handleTransferComplete);
+      await receiveFile(message,dataChannelRef.current,receiveHandlers);
 
       return;
     }
@@ -141,9 +187,10 @@ export function AppProvider({ children }) {
         const sharedSecret = await deriveSharedSecret(ecdhPrivateKeyRef.current, peerPublicKey);
 
         sessionKeyMaterialRef.current = await importSessionKeyMaterial(sharedSecret);
+        setSessionReady(true);
 
 
-        
+
       }
       else{
         //acceptor
@@ -161,16 +208,32 @@ export function AppProvider({ children }) {
 
 
         dataChannelRef.current.send(
-          JSON.stringify({  
+          JSON.stringify({
             type: "ECDH_PUBLIC_KEY",
             publicKey: publicKey
         }));
 
+        setSessionReady(true);
+
       }
 
+      return;
     }
-    await receiveFile(message,handleTransferComplete);
 
+    // acks for files we are sending
+    if(handleFileAck(payload)) return;
+
+    await receiveFile(message,dataChannelRef.current,receiveHandlers);
+
+  };
+
+  const enqueueDataChannelMessage = (sessionId, message) => {
+    dcQueueRef.current = dcQueueRef.current
+      .then(() => {
+        if(sessionId !== dcSessionIdRef.current) return; // message from an old connection
+        return handleDataChannelMessage(message);
+      })
+      .catch(err => console.error("DataChannel message error:", err));
   };
 
 
@@ -178,14 +241,19 @@ export function AppProvider({ children }) {
   const handleTransferComplete = async(transfer) => {
     const {metadata,chunks} = transfer;
 
+    const sessionKeyMaterial = sessionKeyMaterialRef.current;
+
     const ciphertext = reassembleCiphertext(chunks);
 
-    
-    const fileKey = await deriveFileKey(sessionKeyMaterialRef.current,metadata.fileId);
+
+    const fileKey = await deriveFileKey(sessionKeyMaterial,metadata.fileId);
 
     const iv = new Uint8Array(metadata.iv);
 
     const plaintext = await decyrptFile(ciphertext,fileKey,iv);
+
+    // peer disconnected while we were decrypting -> drop the file
+    if(sessionKeyMaterialRef.current !== sessionKeyMaterial) return;
 
 
 
@@ -208,8 +276,24 @@ export function AppProvider({ children }) {
 
   }
 
-  const handleDataChannelClose = () => {
+  // wipes per-connection secure session + transfer state (called from every teardown path)
+  const resetSecureSession = () => {
+    dcSessionIdRef.current++; // drop anything still queued from the old channel
+    dcQueueRef.current = Promise.resolve();
+    clearFileTransfer();
+    setSessionReady(false);
+    setIncomingFiles([]);
+  };
+
+  const handleDataChannelClose = (sessionId) => {
     console.log("Data channel closed.");
+
+    // late close event from a previous connection
+    if(sessionId !== dcSessionIdRef.current) return;
+
+    setSessionReady(false);
+    setIncomingFiles([]);
+    clearFileTransfer();
   };
 
   const handleDataChannelError = (error) => {
@@ -371,15 +455,20 @@ export function AppProvider({ children }) {
       });
 
 
+      const sessionId = ++dcSessionIdRef.current;
+      dcQueueRef.current = Promise.resolve();
+
+      const dataChannelHandlers = {
+        onOpen: handleDataChannelOpen,
+        onMessage: (message) => enqueueDataChannelMessage(sessionId, message),
+        onClose: () => handleDataChannelClose(sessionId),
+        onError: handleDataChannelError
+      };
+
       if(isRequesterRef.current){
         const dataChannel = createDataChannel(peerConnection);
         dataChannelRef.current = dataChannel;
-        registerDataChannelEvents(dataChannel,{
-          onOpen: handleDataChannelOpen,
-          onMessage: handleDataChannelMessage,
-          onClose: handleDataChannelClose,
-          onError: handleDataChannelError
-        });
+        registerDataChannelEvents(dataChannel,dataChannelHandlers);
 
 
         //create offer and send it to the acceptor via signaling server
@@ -392,12 +481,7 @@ export function AppProvider({ children }) {
       else{
         //register incoming data channel event
         
-        registerIncomingDataChannel(peerConnection,dataChannelRef,{
-          onOpen: handleDataChannelOpen,
-          onMessage: handleDataChannelMessage,
-          onClose: handleDataChannelClose,
-          onError: handleDataChannelError
-        });
+        registerIncomingDataChannel(peerConnection,dataChannelRef,dataChannelHandlers);
 
 
 
@@ -423,6 +507,7 @@ export function AppProvider({ children }) {
       closePeerConnection(peerConnectionRef.current);
       peerConnectionRef.current = null;
       dataChannelRef.current = null;
+      resetSecureSession();
 
       setTimeout(() => addToast(reason), 300)
 
@@ -455,7 +540,7 @@ export function AppProvider({ children }) {
       peerECDHPublicKeyRef.current = null;
       sessionKeyMaterialRef.current = null;
 
-      clearFileTransfer();
+      resetSecureSession();
 
       setSentFiles([]);
       setReceivedFiles([]);
@@ -556,7 +641,7 @@ export function AppProvider({ children }) {
       peerECDHPublicKeyRef.current = null;
       sessionKeyMaterialRef.current = null;
 
-      clearFileTransfer();
+      resetSecureSession();
 
       setConnectedPeer(null);
       setIncomingRequest(null);
@@ -644,7 +729,7 @@ export function AppProvider({ children }) {
     clearTimeout(challengeTimeoutRef.current);
     challengeTimeoutRef.current = null;
 
-    clearFileTransfer();
+    resetSecureSession();
 
     setConnectedPeer(null);
     setIncomingRequest(null);
@@ -705,7 +790,7 @@ export function AppProvider({ children }) {
     clearTimeout(challengeTimeoutRef.current);
     challengeTimeoutRef.current = null;
 
-    clearFileTransfer();
+    resetSecureSession();
   
 
     setConnectedPeer(null);
@@ -721,36 +806,63 @@ export function AppProvider({ children }) {
 
   const sendFiles = useCallback(async (files,onProgress) => {
 
+    const isSessionOpen = () =>
+      !!sessionKeyMaterialRef.current && dataChannelRef.current?.readyState === "open";
+
+    if(!isSessionOpen()){
+      addToast("Secure session not ready", "error");
+      return;
+    }
+
     const list = Array.from(files);
     setInTransit(prev => prev + list.length);
 
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
 
-      await sendFile(
-        file,
-        sessionKeyMaterialRef.current,
-        dataChannelRef.current,
-        (progress) => {
-          onProgress?.(file,progress);
-        }
-      );
+      // connection dropped mid-batch: stop instead of failing every remaining file
+      if(!isSessionOpen()){
+        setInTransit(prev => Math.max(0, prev - (list.length - i)));
+        addToast(`Connection lost, ${list.length - i} file(s) not sent`, "error");
+        break;
+      }
 
-      setSentFiles(prev => [
-        ...prev,
-        {
-          id: Date.now() + i,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          sentAt: new Date().toLocaleTimeString(),
-          file: file
-        }
-      ]);
+      try {
 
-      setInTransit(prev => Math.max(0, prev - 1));
+        // resolves only after the receiver confirmed decryption
+        await sendFile(
+          file,
+          sessionKeyMaterialRef.current,
+          dataChannelRef.current,
+          (progress, stage) => {
+            onProgress?.(file,progress,stage);
+          }
+        );
 
-      addToast(`Sent: ${file.name}`);
+        setSentFiles(prev => [
+          ...prev,
+          {
+            id: Date.now() + i,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            sentAt: new Date().toLocaleTimeString(),
+            file: file
+          }
+        ]);
+
+        addToast(`Sent: ${file.name}`);
+
+      } catch (error) {
+
+        console.error("File send failed:", error);
+        addToast(`Failed to send ${file.name}`, "error");
+
+      } finally {
+
+        setInTransit(prev => Math.max(0, prev - 1));
+
+      }
     }
 
   }, [addToast]);
@@ -764,6 +876,8 @@ export function AppProvider({ children }) {
       toasts, addToast,
       sentFiles, inTransitCount,
       receivedFiles,
+      incomingFiles,
+      sessionReady,
       sendFiles,
       socket: () => socketRef.current,
       incomingRequest,

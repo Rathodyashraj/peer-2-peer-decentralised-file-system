@@ -7,7 +7,7 @@ import FileCard from '../components/FileCard'
 import { formatBytes } from '../utils/helpers'
 
 export default function WorkspacePage() {
-  const { connectedPeer, disconnectPeer, sentFiles, inTransitCount, sendFiles, receivedFiles } = useApp()
+  const { connectedPeer, disconnectPeer, sentFiles, inTransitCount, sendFiles, receivedFiles, incomingFiles, sessionReady } = useApp()
   const navigate = useNavigate()
   const location = useLocation()
   const [selectedFiles, setSelectedFiles] = useState([])
@@ -35,6 +35,10 @@ export default function WorkspacePage() {
   }
 
 
+  const updateSendingProgress = (progressFile, progress, stage) => {
+    setSendingFiles(prev => prev.map(item => item.file === progressFile ? { ...item, progress, stage } : item));
+  }
+
   async function handleSendFile(file) {
 
     setSelectedFiles(prev =>
@@ -45,13 +49,12 @@ export default function WorkspacePage() {
       ...prev,
       {
         file,
-        progress: 0
+        progress: 0,
+        stage: 'encrypting'
       }
     ]);
 
-    await sendFiles([file],(progressFile,progress) => {
-      setSendingFiles( prev => prev.map(item => item.file === progressFile ? { ...item, progress} : item));
-    });
+    await sendFiles([file], updateSendingProgress);
 
     setSendingFiles(prev =>
       prev.filter(item => item.file !== file)
@@ -70,14 +73,12 @@ export default function WorkspacePage() {
     
     setSelectedFiles([]);
 
-    setSendingFiles(toSend.map(file => ({file,progress:0})));
+    setSendingFiles(prev => [...prev, ...toSend.map(file => ({ file, progress: 0, stage: 'encrypting' }))]);
 
 
-    await sendFiles(toSend, (progressFile,progress) => {
-      setSendingFiles(prev => prev.map(item => item.file === progressFile ? { ...item, progress} : item)); 
-    });
+    await sendFiles(toSend, updateSendingProgress);
     
-    setSendingFiles([]);
+    setSendingFiles(prev => prev.filter(item => !toSend.includes(item.file)));
   }
 
   if (!connectedPeer) return null
@@ -181,7 +182,7 @@ export default function WorkspacePage() {
               <div className="card p-5 animate-fade-in">
                 <h3 className="text-sm font-semibold font-display mb-3 text-app">Sending…</h3>
                 <div className="flex flex-col gap-2">
-                  {sendingFiles.map((item, i) => <FileCard key={i} file={item.file} status="sending" progress={item.progress} />)}
+                  {sendingFiles.map((item, i) => <FileCard key={i} file={item.file} status="sending" progress={item.progress} stage={item.stage} />)}
                 </div>
               </div>
             )}
@@ -192,13 +193,13 @@ export default function WorkspacePage() {
                   <h3 className="text-sm font-semibold font-display text-app">
                     Selected files <span className="font-normal text-muted">({selectedFiles.length})</span>
                   </h3>
-                  <button onClick={handleSend}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold font-display text-white transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 bg-brand shadow-glow-teal">
+                  <button onClick={handleSend} disabled={!sessionReady}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold font-display text-white transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 bg-brand shadow-glow-teal disabled:opacity-50 disabled:pointer-events-none">
                     <Send size={14} /> Send all
                   </button>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {selectedFiles.map((f, i) => <FileCard key={i} file={f} onRemove={removeFile} onSend={handleSendFile} />)}
+                  {selectedFiles.map((f, i) => <FileCard key={i} file={f} onRemove={removeFile} onSend={sessionReady ? handleSendFile : undefined} />)}
                 </div>
                 <div className="flex items-center justify-between pt-3 mt-3 border-t border-theme">
                   <span className="text-xs font-body-var text-muted">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected</span>
@@ -229,7 +230,7 @@ export default function WorkspacePage() {
               )}
             </div>
 
-            {receivedFiles.length === 0 ? (
+            {incomingFiles.length === 0 && receivedFiles.length === 0 ? (
               <p
                 className="text-sm text-center py-8 font-body-var text-muted"
                 style={{ opacity: 0.6 }}
@@ -238,6 +239,15 @@ export default function WorkspacePage() {
               </p>
             ) : (
               <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
+                {incomingFiles.map(item => (
+                  <FileCard
+                    key={item.id}
+                    file={item}
+                    status="receiving"
+                    progress={item.progress}
+                    stage={item.stage}
+                  />
+                ))}
                 {receivedFiles.map(file => (
                   <FileCard
                     key={file.id}
